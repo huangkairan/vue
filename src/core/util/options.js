@@ -28,6 +28,8 @@ import {
  */
 // 全局配置对象，此时还是空对象
 // 选项覆盖策略是处理如何将父选项值和子选项值合并到最终值的函数。也就是说，不同的选项会使用不同的策略合并
+// 在开发中，我们如果自定义一个options.customOption，会走默认的defaultStrat合并
+// 如果我们想自定义合并策略，可以自己写Vue.config.optionMergeStrategies.customOption = function(parentVal,childVal){ return parentVal ? parentVal + childVal : childVal }
 const strats = config.optionMergeStrategies
 
 /**
