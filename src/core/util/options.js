@@ -518,7 +518,7 @@ export function mergeOptions(
     // mixinx是数组，所以遍历merge
     if (child.mixins) {
       for (let i = 0, l = child.mixins.length; i < l; i++) {
-        // 递归处理
+        // 递归合并options，将child的mixin都merge到parent中，生成一个新的parent
         parent = mergeOptions(parent, child.mixins[i], vm)
       }
     }
