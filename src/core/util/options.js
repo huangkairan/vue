@@ -304,6 +304,8 @@ strats.watch = function (
 /**
  * Other object hashes.
  */
+// props,methods,inject,computed的合并策略
+// 为什么能一起处理，因为这几个属性都是纯对象
 strats.props =
   strats.methods =
   strats.inject =
@@ -313,15 +315,23 @@ strats.props =
     vm?: Component,
     key: string
   ): ?Object {
+    // 开始先来判断个是否为对象
     if (childVal && process.env.NODE_ENV !== 'production') {
       assertObjectType(key, childVal, vm)
     }
+    // 如果没parentVal，返回childVal
     if (!parentVal) return childVal
+    // 创建空对象
     const ret = Object.create(null)
+    // 执行到此处，parentVal必存在，将parentVal合并到ret
     extend(ret, parentVal)
+    // 如果childVal存在，将childVal合并至ret
     if (childVal) extend(ret, childVal)
+    // 返回ret
     return ret
   }
+
+// provide合并策略， 与处理data一样
 strats.provide = mergeDataOrFn
 
 /**
