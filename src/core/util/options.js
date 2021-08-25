@@ -26,19 +26,25 @@ import {
  * how to merge a parent option value and a child option
  * value into the final value.
  */
+// 全局配置对象，此时还是空对象
+// 选项覆盖策略是处理如何将父选项值和子选项值合并到最终值的函数。也就是说，不同的选项会使用不同的策略合并
 const strats = config.optionMergeStrategies
 
 /**
  * Options with restrictions
  */
+
+// el和propsData只有在非生产环境才有
 if (process.env.NODE_ENV !== 'production') {
   strats.el = strats.propsData = function (parent, child, vm, key) {
+    // 这里的vm为 mergeOptions中传来的vm（第三个参数），但如果是通过Vue.extends调用的mergeOptions，则这里为false（子组件的情况）
     if (!vm) {
       warn(
         `option "${key}" can only be used during instance ` +
         'creation with the `new` keyword.'
       )
     }
+    // 如果children为空，返回parent，否则返回child
     return defaultStrat(parent, child)
   }
 }
@@ -46,22 +52,26 @@ if (process.env.NODE_ENV !== 'production') {
 /**
  * Helper that recursively merges two data objects together.
  */
+// 总之，mergeData会接受两个对象，将from的对象的属性merge到to对象中，也可以说是把parentVal对象的熟悉merge到childVal对象中
 function mergeData(to: Object, from: ?Object): Object {
+  // 没from，直接返回to
   if (!from) return to
   let key, toVal, fromVal
 
   const keys = hasSymbol
     ? Reflect.ownKeys(from)
     : Object.keys(from)
-
+  // 遍历from的key
   for (let i = 0; i < keys.length; i++) {
     key = keys[i]
     // in case the object is already observed...
     if (key === '__ob__') continue
     toVal = to[key]
     fromVal = from[key]
+    // 如果 from 对象中的 key 不在 to 对象中，则使用 set 函数为 to 对象设置 key 及相应的值
     if (!hasOwn(to, key)) {
       set(to, key, fromVal)
+      // 如果 from 对象中的 key 也在 to 对象中，且这两个属性的值都是纯对象则递归进行深度合并
     } else if (
       toVal !== fromVal &&
       isPlainObject(toVal) &&
@@ -70,22 +80,28 @@ function mergeData(to: Object, from: ?Object): Object {
       mergeData(toVal, fromVal)
     }
   }
+  //最后返回to对象
   return to
 }
 
 /**
  * Data
  */
+// 永远返回一个函数 mergedDataFn 或 mergedInstanceDataFn
 export function mergeDataOrFn(
   parentVal: any,
   childVal: any,
   vm?: Component
 ): ?Function {
+  // vm=false，为子组件
   if (!vm) {
     // in a Vue.extend merge, both should be functions
+    // 当拿不到vm的时候，说明是在Vue.extend()中处理的，此时parentVal和childVal都是fn
+    // 没传child，返回parent
     if (!childVal) {
       return parentVal
     }
+    // 没传parent，返回child
     if (!parentVal) {
       return childVal
     }
@@ -94,6 +110,7 @@ export function mergeDataOrFn(
     // merged result of both functions... no need to
     // check if parentVal is a function here because
     // it has to be a function to pass previous merges.
+    //当parent和child同时存在，返回mergedDataFn，mergedDataFn内部调用了mergeData
     return function mergedDataFn() {
       return mergeData(
         typeof childVal === 'function' ? childVal.call(this, this) : childVal,
@@ -101,6 +118,7 @@ export function mergeDataOrFn(
       )
     }
   } else {
+    // 如果是有vm的情况，直接返回mergedInstanceDataFn函数
     return function mergedInstanceDataFn() {
       // instance merge
       const instanceData = typeof childVal === 'function'
@@ -118,12 +136,17 @@ export function mergeDataOrFn(
   }
 }
 
+// 处理data策略，由于mergeDataOrFn永远会返回一个fn，这里strats.data的值也永远是个fn
+// 处理成函数的原因是为了保证每个组件实例中的数据都唯一，不互相污染
+// 此处不直接执行的原因是，Vue初始化时，inject和props的处理时优先于data，这就保证了使用props初始化data的数据
 strats.data = function (
   parentVal: any,
   childVal: any,
   vm?: Component
 ): ?Function {
+  // 先判断是否传入vm，是否是子组件（子组件为false）
   if (!vm) {
+    // 如果childVal不是function，警告；因为子组件中的data必须是一个返回对象的函数，并返回parentVal
     if (childVal && typeof childVal !== 'function') {
       process.env.NODE_ENV !== 'production' && warn(
         'The "data" option should be a function ' +
@@ -134,9 +157,11 @@ strats.data = function (
 
       return parentVal
     }
+    // 如果childVal是函数，则返回执行mergeDataOrFn的结果，并不会传入vm
     return mergeDataOrFn(parentVal, childVal)
   }
 
+  // 此处，如果传入了vm，说明此处不是子组件，是个用new创建的实例，则直接返回一个mergeDataOrFn的结果，同时会传入vm
   return mergeDataOrFn(parentVal, childVal, vm)
 }
 
@@ -261,6 +286,7 @@ strats.provide = mergeDataOrFn
 /**
  * Default strategy.
  */
+// 默认策略： 如果children为空，返回parent，否则返回child
 const defaultStrat = function (parentVal: any, childVal: any): any {
   return childVal === undefined
     ? parentVal
@@ -449,14 +475,18 @@ export function mergeOptions(
 
   const options = {}
   let key
+  // 遍历parent
   for (key in parent) {
     mergeField(key)
   }
+  // 遍历child
   for (key in child) {
+    // hasOwnProperty
     if (!hasOwn(parent, key)) {
       mergeField(key)
     }
   }
+  // 当一个选项没对应的策略函数时，使用默认策略
   function mergeField(key) {
     const strat = strats[key] || defaultStrat
     options[key] = strat(parent[key], child[key], vm, key)
