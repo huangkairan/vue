@@ -168,6 +168,19 @@ strats.data = function (
 /**
  * Hooks and props are merged as arrays.
  */
+
+// 生命周期的合并策略 parentVal一定是数组
+
+/**
+ * 
+ * return (是否有 childVal，即判断组件的选项中是否有对应名字的生命周期钩子函数)
+  ? 如果有 childVal 则判断是否有 parentVal
+    ? 如果有 parentVal 则使用 concat 方法将二者合并为一个数组
+    : 如果没有 parentVal 则判断 childVal 是不是一个数组
+      ? 如果 childVal 是一个数组则直接返回
+      : 否则将其作为数组的元素，然后返回数组
+  : 如果没有 childVal 则直接返回 parentVal
+ */
 function mergeHook(
   parentVal: ?Array<Function>,
   childVal: ?Function | ?Array<Function>
@@ -175,6 +188,7 @@ function mergeHook(
   const res = childVal
     ? parentVal
       ? parentVal.concat(childVal)
+      // 这里这个判断childVal是否为数组，意味着其实生命周期hook里时可以写数组的，虽然没试过
       : Array.isArray(childVal)
         ? childVal
         : [childVal]
@@ -194,6 +208,7 @@ function dedupeHooks(hooks) {
   return res
 }
 
+// 遍历生命周期，将合并生命周期fn挂在strats[生命周期hook]上
 LIFECYCLE_HOOKS.forEach(hook => {
   strats[hook] = mergeHook
 })
@@ -205,14 +220,22 @@ LIFECYCLE_HOOKS.forEach(hook => {
  * a three-way merge between constructor options, instance
  * options and parent options.
  */
+// 资源合并策略，在Vue中，directives，filter，components都被认为是资源
+// 整体与生命周期hook的合并策略几乎一致
 function mergeAssets(
   parentVal: ?Object,
   childVal: ?Object,
   vm?: Component,
   key: string
 ): Object {
+  // 以parentVal为原型创建对象
   const res = Object.create(parentVal || null)
+  // 如果有childVal，使用extend，将childVal上的属性merge到res上，否则直接返回
+  // 这里注意到，使用中组件如keep-alive，transition组件无需在components中声明（filters，directives也是一样）
+  // 是因为Vue在初始化的时候，将KeepAlive，Transition，TransitionGroup、v-model、v-bind等注册在了Vue.options.components、filters、directives上
   if (childVal) {
+
+    // 非生产环境下，检测childVal是不是一个纯对象
     process.env.NODE_ENV !== 'production' && assertObjectType(key, childVal, vm)
     return extend(res, childVal)
   } else {
@@ -220,6 +243,7 @@ function mergeAssets(
   }
 }
 
+// 遍历资源，将合并策略fn存在strats[资源]中
 ASSET_TYPES.forEach(function (type) {
   strats[type + 's'] = mergeAssets
 })
@@ -230,6 +254,7 @@ ASSET_TYPES.forEach(function (type) {
  * Watchers hashes should not overwrite one
  * another, so we merge them as arrays.
  */
+// watch的合并策略
 strats.watch = function (
   parentVal: ?Object,
   childVal: ?Object,
@@ -237,26 +262,42 @@ strats.watch = function (
   key: string
 ): ?Object {
   // work around Firefox's Object.prototype.watch...
+  // firefox的object原型上有watch，所以做一个判断避免冲突
   if (parentVal === nativeWatch) parentVal = undefined
   if (childVal === nativeWatch) childVal = undefined
   /* istanbul ignore if */
+  // 检测了是否有 childVal，即组件选项是否有 watch 选项，如果没有的话，直接以 parentVal 为原型创建对象并返回(如果有 parentVal 的话)。
   if (!childVal) return Object.create(parentVal || null)
+  // 非生产 检测是否纯对象
   if (process.env.NODE_ENV !== 'production') {
     assertObjectType(key, childVal, vm)
   }
+  // 执行到此处，childVal一定存在，继续判断
+  // 如果没有parentVal，返回childVal
   if (!parentVal) return childVal
+
+  // 执行到此处，parentVal和childVal都存在，进行合并处理
   const ret = {}
+  // 先将parentVal的属性merge到ret上
   extend(ret, parentVal)
+
+  // 遍历childVal
   for (const key in childVal) {
+    // 由于这里遍历的是childVal的key，又用这个key去parentVal上拿值，所以parent不一定会有值
     let parent = ret[key]
+    // 这里的child必定有值
     const child = childVal[key]
+    // 如果parent有值，并且parent不是数组，将parent放入数组中
     if (parent && !Array.isArray(parent)) {
       parent = [parent]
     }
+    // 如果parent存在，此时parent已经被转为数组，将child 合并进去返回
+    // 如过parent不存在，则判断child是否为数组，如果不是 就转换为数组返回
     ret[key] = parent
       ? parent.concat(child)
       : Array.isArray(child) ? child : [child]
   }
+  // 最后返回新的合并后的对象
   return ret
 }
 
