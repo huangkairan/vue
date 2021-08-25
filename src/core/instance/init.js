@@ -48,7 +48,9 @@ export function initMixin(Vue: Class<Component>) {
       )
     }
     /* istanbul ignore else */
+    // 非生产环境，执行initProxy，否则在实例上添加 _renderProxy 实例属性，该属性的值就是当前实例
     if (process.env.NODE_ENV !== 'production') {
+      //作用也是在实例对象 vm 上添加 _renderProxy 属性
       initProxy(vm)
     } else {
       vm._renderProxy = vm
