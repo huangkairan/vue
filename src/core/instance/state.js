@@ -328,7 +328,7 @@ export function stateMixin(Vue: Class<Component>) {
   dataDef.get = function () { return this._data }
   const propsDef = {}
   propsDef.get = function () { return this._props }
-  // 如果是生产环境，告诉开发者别想修改$data和$props，也就是说 $data和$props都是只读属性
+  // 如果是非生产环境，告诉开发者别想修改$data和$props，也就是说 $data和$props都是只读属性
   if (process.env.NODE_ENV !== 'production') {
     dataDef.set = function () {
       warn(

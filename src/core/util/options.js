@@ -46,7 +46,7 @@ if (process.env.NODE_ENV !== 'production') {
 /**
  * Helper that recursively merges two data objects together.
  */
-function mergeData (to: Object, from: ?Object): Object {
+function mergeData(to: Object, from: ?Object): Object {
   if (!from) return to
   let key, toVal, fromVal
 
@@ -76,7 +76,7 @@ function mergeData (to: Object, from: ?Object): Object {
 /**
  * Data
  */
-export function mergeDataOrFn (
+export function mergeDataOrFn(
   parentVal: any,
   childVal: any,
   vm?: Component
@@ -94,14 +94,14 @@ export function mergeDataOrFn (
     // merged result of both functions... no need to
     // check if parentVal is a function here because
     // it has to be a function to pass previous merges.
-    return function mergedDataFn () {
+    return function mergedDataFn() {
       return mergeData(
         typeof childVal === 'function' ? childVal.call(this, this) : childVal,
         typeof parentVal === 'function' ? parentVal.call(this, this) : parentVal
       )
     }
   } else {
-    return function mergedInstanceDataFn () {
+    return function mergedInstanceDataFn() {
       // instance merge
       const instanceData = typeof childVal === 'function'
         ? childVal.call(vm, vm)
@@ -143,7 +143,7 @@ strats.data = function (
 /**
  * Hooks and props are merged as arrays.
  */
-function mergeHook (
+function mergeHook(
   parentVal: ?Array<Function>,
   childVal: ?Function | ?Array<Function>
 ): ?Array<Function> {
@@ -159,7 +159,7 @@ function mergeHook (
     : res
 }
 
-function dedupeHooks (hooks) {
+function dedupeHooks(hooks) {
   const res = []
   for (let i = 0; i < hooks.length; i++) {
     if (res.indexOf(hooks[i]) === -1) {
@@ -180,7 +180,7 @@ LIFECYCLE_HOOKS.forEach(hook => {
  * a three-way merge between constructor options, instance
  * options and parent options.
  */
-function mergeAssets (
+function mergeAssets(
   parentVal: ?Object,
   childVal: ?Object,
   vm?: Component,
@@ -239,23 +239,23 @@ strats.watch = function (
  * Other object hashes.
  */
 strats.props =
-strats.methods =
-strats.inject =
-strats.computed = function (
-  parentVal: ?Object,
-  childVal: ?Object,
-  vm?: Component,
-  key: string
-): ?Object {
-  if (childVal && process.env.NODE_ENV !== 'production') {
-    assertObjectType(key, childVal, vm)
+  strats.methods =
+  strats.inject =
+  strats.computed = function (
+    parentVal: ?Object,
+    childVal: ?Object,
+    vm?: Component,
+    key: string
+  ): ?Object {
+    if (childVal && process.env.NODE_ENV !== 'production') {
+      assertObjectType(key, childVal, vm)
+    }
+    if (!parentVal) return childVal
+    const ret = Object.create(null)
+    extend(ret, parentVal)
+    if (childVal) extend(ret, childVal)
+    return ret
   }
-  if (!parentVal) return childVal
-  const ret = Object.create(null)
-  extend(ret, parentVal)
-  if (childVal) extend(ret, childVal)
-  return ret
-}
 strats.provide = mergeDataOrFn
 
 /**
@@ -270,19 +270,21 @@ const defaultStrat = function (parentVal: any, childVal: any): any {
 /**
  * Validate component names
  */
-function checkComponents (options: Object) {
+function checkComponents(options: Object) {
   for (const key in options.components) {
     validateComponentName(key)
   }
 }
 
-export function validateComponentName (name: string) {
+export function validateComponentName(name: string) {
   if (!new RegExp(`^[a-zA-Z][\\-\\.0-9_${unicodeRegExp.source}]*$`).test(name)) {
     warn(
       'Invalid component name: "' + name + '". Component names ' +
       'should conform to valid custom element name in html5 specification.'
     )
   }
+
+  // 判断是否是内置关键字 isBuiltInTag:slot,component;isReservedTag:key,ref,slot,slot-scope,is
   if (isBuiltInTag(name) || config.isReservedTag(name)) {
     warn(
       'Do not use built-in or reserved HTML elements as component ' +
@@ -295,11 +297,14 @@ export function validateComponentName (name: string) {
  * Ensure all props option syntax are normalized into the
  * Object-based format.
  */
-function normalizeProps (options: Object, vm: ?Component) {
+// 将props规范为对象
+function normalizeProps(options: Object, vm: ?Component) {
+  // 非空判断
   const props = options.props
   if (!props) return
   const res = {}
   let i, val, name
+  // props两种写法，对象或数组，如果是数组写法，type会被规范为null
   if (Array.isArray(props)) {
     i = props.length
     while (i--) {
@@ -311,6 +316,7 @@ function normalizeProps (options: Object, vm: ?Component) {
         warn('props must be strings when using array syntax.')
       }
     }
+    //props为对象
   } else if (isPlainObject(props)) {
     for (const key in props) {
       val = props[key]
@@ -319,6 +325,7 @@ function normalizeProps (options: Object, vm: ?Component) {
         ? val
         : { type: val }
     }
+    // 既不是数组，也不是对象，非生产环境警告
   } else if (process.env.NODE_ENV !== 'production') {
     warn(
       `Invalid value for option "props": expected an Array or an Object, ` +
@@ -326,16 +333,22 @@ function normalizeProps (options: Object, vm: ?Component) {
       vm
     )
   }
+  // 用处理后的props覆盖处理前的props
   options.props = res
 }
 
 /**
  * Normalize all injections into Object-based format
  */
-function normalizeInject (options: Object, vm: ?Component) {
+// 规范inject
+function normalizeInject(options: Object, vm: ?Component) {
+  // 缓存options.inject
   const inject = options.inject
+  // 非空处理
   if (!inject) return
+  // 重写optoins.inject，重写定义一个变量
   const normalized = options.inject = {}
+  // 同样判断是数组还是对象写法，分别处理
   if (Array.isArray(inject)) {
     for (let i = 0; i < inject.length; i++) {
       normalized[inject[i]] = { from: inject[i] }
@@ -347,6 +360,7 @@ function normalizeInject (options: Object, vm: ?Component) {
         ? extend({ from: key }, val)
         : { from: val }
     }
+    // 警告
   } else if (process.env.NODE_ENV !== 'production') {
     warn(
       `Invalid value for option "inject": expected an Array or an Object, ` +
@@ -354,16 +368,21 @@ function normalizeInject (options: Object, vm: ?Component) {
       vm
     )
   }
+  // 这里不用重新赋值是因为上面 const normalized = options.inject = {}；normalized和options.inject引用相同
 }
 
 /**
  * Normalize raw function directives into object format.
  */
-function normalizeDirectives (options: Object) {
+// 规范directive指令
+function normalizeDirectives(options: Object) {
+  // 缓存
   const dirs = options.directives
+  // 非空处理
   if (dirs) {
     for (const key in dirs) {
       const def = dirs[key]
+      // 这里也是判断directives的写法，可能是对象或函数写法
       if (typeof def === 'function') {
         dirs[key] = { bind: def, update: def }
       }
@@ -371,7 +390,7 @@ function normalizeDirectives (options: Object) {
   }
 }
 
-function assertObjectType (name: string, value: any, vm: ?Component) {
+function assertObjectType(name: string, value: any, vm: ?Component) {
   if (!isPlainObject(value)) {
     warn(
       `Invalid value for option "${name}": expected an Object, ` +
@@ -385,33 +404,44 @@ function assertObjectType (name: string, value: any, vm: ?Component) {
  * Merge two option objects into a new one.
  * Core utility used in both instantiation and inheritance.
  */
-export function mergeOptions (
+// 作用：将传入的两个options合并
+// 三个参数：父节点，子节点，vue实例
+export function mergeOptions(
   parent: Object,
   child: Object,
   vm?: Component
 ): Object {
+  // 如果是非生产环境，会传入child调用，遍历校验每个子组件的名字是否规范
   if (process.env.NODE_ENV !== 'production') {
     checkComponents(child)
   }
 
+  // child还可以是函数，获取函数的options
   if (typeof child === 'function') {
     child = child.options
   }
 
+  // 规范props
   normalizeProps(child, vm)
+  // 规范注入
   normalizeInject(child, vm)
+  // 规范指令
   normalizeDirectives(child)
 
   // Apply extends and mixins on the child options,
   // but only if it is a raw options object that isn't
   // the result of another mergeOptions call.
   // Only merged options has the _base property.
+  // 处理extends和mixins。同样规范化，只是入参不同
+  // 先处理extends，后处理mixins，每次处理后parent会被规范化的对象覆盖
   if (!child._base) {
     if (child.extends) {
       parent = mergeOptions(parent, child.extends, vm)
     }
+    // mixinx是数组，所以遍历merge
     if (child.mixins) {
       for (let i = 0, l = child.mixins.length; i < l; i++) {
+        // 递归处理
         parent = mergeOptions(parent, child.mixins[i], vm)
       }
     }
@@ -427,7 +457,7 @@ export function mergeOptions (
       mergeField(key)
     }
   }
-  function mergeField (key) {
+  function mergeField(key) {
     const strat = strats[key] || defaultStrat
     options[key] = strat(parent[key], child[key], vm, key)
   }
@@ -439,7 +469,7 @@ export function mergeOptions (
  * This function is used because child instances need access
  * to assets defined in its ancestor chain.
  */
-export function resolveAsset (
+export function resolveAsset(
   options: Object,
   type: string,
   id: string,

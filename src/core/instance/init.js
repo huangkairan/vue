@@ -17,27 +17,30 @@ export function initMixin(Vue: Class<Component>) {
   Vue.prototype._init = function (options?: Object) {
     const vm: Component = this
     // a uid
-    // 唯一id
+    // 实例唯一id
     vm._uid = uid++
 
     let startTag, endTag
     /* istanbul ignore if */
+    // 非生产环境，并且设置了config.performance（可以追踪性能，详见：core/config.js），标记
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
       startTag = `vue-perf-start:${vm._uid}`
       endTag = `vue-perf-end:${vm._uid}`
-      mark(startTag)
+      mark(startTag) // 标记计算代码性能的开始，到结束之间的代码会被计算性能
     }
 
     // a flag to avoid this being observed
-    // 标识是Vue，避免被观察
+    // 标识是Vue，避免被响应式系统观察
     vm._isVue = true
     // merge options
+    // 如果是Vue组件 优化内部组件实例化，因为动态选项合并非常慢，而且没有一个内部组件选项需要特殊处理。
     if (options && options._isComponent) {
       // optimize internal component instantiation
       // since dynamic options merging is pretty slow, and none of the
       // internal component options needs special treatment.
       initInternalComponent(vm, options)
     } else {
+      // 往实例上添加$options，mergeOptions的作用主要是将两个options合并，同时规范化props,inject,directives
       vm.$options = mergeOptions(
         resolveConstructorOptions(vm.constructor),
         options || {},
@@ -63,6 +66,7 @@ export function initMixin(Vue: Class<Component>) {
     callHook(vm, 'created')
 
     /* istanbul ignore if */
+    // 标记计算代码性能的结束
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
       vm._name = formatComponentName(vm, false)
       mark(endTag)
@@ -96,16 +100,23 @@ export function initInternalComponent(vm: Component, options: InternalComponentO
   }
 }
 
+// 作用：用来获取当前实例构造者的 options 属性
 export function resolveConstructorOptions(Ctor: Class<Component>) {
+  // Ctor:传进来的vm.constructor
+  // 如果使用Vue.extend()创建一个Vue的子类，并用子类创造实例，则这玩意会是子类的constructor
   let options = Ctor.options
+  // 此处，super是只有子类才有的属性，如果传入的不是组件，则原封不动返回options
   if (Ctor.super) {
+    // 递归处理
     const superOptions = resolveConstructorOptions(Ctor.super)
+    // 缓存父类的options
     const cachedSuperOptions = Ctor.superOptions
     if (superOptions !== cachedSuperOptions) {
       // super option changed,
       // need to resolve new options.
       Ctor.superOptions = superOptions
       // check if there are any late-modified/attached options (#4976)
+      // 解决了使用vue-hot-reload-api或vue-loader时产生的一个bug
       const modifiedOptions = resolveModifiedOptions(Ctor)
       // update base extend options
       if (modifiedOptions) {
