@@ -36,17 +36,17 @@ const sharedPropertyDefinition = {
   set: noop
 }
 
-export function proxy (target: Object, sourceKey: string, key: string) {
-  sharedPropertyDefinition.get = function proxyGetter () {
+export function proxy(target: Object, sourceKey: string, key: string) {
+  sharedPropertyDefinition.get = function proxyGetter() {
     return this[sourceKey][key]
   }
-  sharedPropertyDefinition.set = function proxySetter (val) {
+  sharedPropertyDefinition.set = function proxySetter(val) {
     this[sourceKey][key] = val
   }
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 
-export function initState (vm: Component) {
+export function initState(vm: Component) {
   vm._watchers = []
   const opts = vm.$options
   if (opts.props) initProps(vm, opts.props)
@@ -62,7 +62,7 @@ export function initState (vm: Component) {
   }
 }
 
-function initProps (vm: Component, propsOptions: Object) {
+function initProps(vm: Component, propsOptions: Object) {
   const propsData = vm.$options.propsData || {}
   const props = vm._props = {}
   // cache prop keys so that future props updates can iterate using Array
@@ -80,7 +80,7 @@ function initProps (vm: Component, propsOptions: Object) {
     if (process.env.NODE_ENV !== 'production') {
       const hyphenatedKey = hyphenate(key)
       if (isReservedAttribute(hyphenatedKey) ||
-          config.isReservedAttr(hyphenatedKey)) {
+        config.isReservedAttr(hyphenatedKey)) {
         warn(
           `"${hyphenatedKey}" is a reserved attribute and cannot be used as component prop.`,
           vm
@@ -110,7 +110,7 @@ function initProps (vm: Component, propsOptions: Object) {
   toggleObserving(true)
 }
 
-function initData (vm: Component) {
+function initData(vm: Component) {
   let data = vm.$options.data
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
@@ -152,7 +152,7 @@ function initData (vm: Component) {
   observe(data, true /* asRootData */)
 }
 
-export function getData (data: Function, vm: Component): any {
+export function getData(data: Function, vm: Component): any {
   // #7573 disable dep collection when invoking data getters
   pushTarget()
   try {
@@ -167,7 +167,7 @@ export function getData (data: Function, vm: Component): any {
 
 const computedWatcherOptions = { lazy: true }
 
-function initComputed (vm: Component, computed: Object) {
+function initComputed(vm: Component, computed: Object) {
   // $flow-disable-line
   const watchers = vm._computedWatchers = Object.create(null)
   // computed properties are just getters during SSR
@@ -210,7 +210,7 @@ function initComputed (vm: Component, computed: Object) {
   }
 }
 
-export function defineComputed (
+export function defineComputed(
   target: any,
   key: string,
   userDef: Object | Function
@@ -230,7 +230,7 @@ export function defineComputed (
     sharedPropertyDefinition.set = userDef.set || noop
   }
   if (process.env.NODE_ENV !== 'production' &&
-      sharedPropertyDefinition.set === noop) {
+    sharedPropertyDefinition.set === noop) {
     sharedPropertyDefinition.set = function () {
       warn(
         `Computed property "${key}" was assigned to but it has no setter.`,
@@ -241,8 +241,8 @@ export function defineComputed (
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 
-function createComputedGetter (key) {
-  return function computedGetter () {
+function createComputedGetter(key) {
+  return function computedGetter() {
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
       if (watcher.dirty) {
@@ -257,12 +257,12 @@ function createComputedGetter (key) {
 }
 
 function createGetterInvoker(fn) {
-  return function computedGetter () {
+  return function computedGetter() {
     return fn.call(this, this)
   }
 }
 
-function initMethods (vm: Component, methods: Object) {
+function initMethods(vm: Component, methods: Object) {
   const props = vm.$options.props
   for (const key in methods) {
     if (process.env.NODE_ENV !== 'production') {
@@ -290,7 +290,7 @@ function initMethods (vm: Component, methods: Object) {
   }
 }
 
-function initWatch (vm: Component, watch: Object) {
+function initWatch(vm: Component, watch: Object) {
   for (const key in watch) {
     const handler = watch[key]
     if (Array.isArray(handler)) {
@@ -303,7 +303,7 @@ function initWatch (vm: Component, watch: Object) {
   }
 }
 
-function createWatcher (
+function createWatcher(
   vm: Component,
   expOrFn: string | Function,
   handler: any,
@@ -319,7 +319,8 @@ function createWatcher (
   return vm.$watch(expOrFn, handler, options)
 }
 
-export function stateMixin (Vue: Class<Component>) {
+// 在Vue的原型上添加$data,$props,$set,$delete,$watch方法
+export function stateMixin(Vue: Class<Component>) {
   // flow somehow has problems with directly declared definition object
   // when using Object.defineProperty, so we have to procedurally build up
   // the object here.
@@ -327,6 +328,7 @@ export function stateMixin (Vue: Class<Component>) {
   dataDef.get = function () { return this._data }
   const propsDef = {}
   propsDef.get = function () { return this._props }
+  // 如果是生产环境，告诉开发者别想修改$data和$props，也就是说 $data和$props都是只读属性
   if (process.env.NODE_ENV !== 'production') {
     dataDef.set = function () {
       warn(
@@ -339,6 +341,8 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+  // $data其实代理的是_data这个实例属性
+  // $props其实代理的是_props这个实例属性
   Object.defineProperty(Vue.prototype, '$data', dataDef)
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
@@ -357,13 +361,15 @@ export function stateMixin (Vue: Class<Component>) {
     options = options || {}
     options.user = true
     const watcher = new Watcher(vm, expOrFn, cb, options)
+    // 这tm？ 回溯？ 刚开始看，挖个坑 后面再详看
     if (options.immediate) {
       const info = `callback for immediate watcher "${watcher.expression}"`
       pushTarget()
       invokeWithErrorHandling(cb, vm, [watcher.value], vm, info)
       popTarget()
     }
-    return function unwatchFn () {
+    // 返回一个取消watch的方法
+    return function unwatchFn() {
       watcher.teardown()
     }
   }

@@ -12,10 +12,12 @@ import { extend, mergeOptions, formatComponentName } from '../util/index'
 
 let uid = 0
 
-export function initMixin (Vue: Class<Component>) {
+// 在Vue的原型上挂载_init方法，一个初始化的方法
+export function initMixin(Vue: Class<Component>) {
   Vue.prototype._init = function (options?: Object) {
     const vm: Component = this
     // a uid
+    // 唯一id
     vm._uid = uid++
 
     let startTag, endTag
@@ -27,6 +29,7 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // a flag to avoid this being observed
+    // 标识是Vue，避免被观察
     vm._isVue = true
     // merge options
     if (options && options._isComponent) {
@@ -48,6 +51,7 @@ export function initMixin (Vue: Class<Component>) {
       vm._renderProxy = vm
     }
     // expose real self
+    // 执行一系列init，暴露beforeCreate和created生命周期
     vm._self = vm
     initLifecycle(vm)
     initEvents(vm)
@@ -65,13 +69,15 @@ export function initMixin (Vue: Class<Component>) {
       measure(`vue ${vm._name} init`, startTag, endTag)
     }
 
+    // 挂载节点
     if (vm.$options.el) {
       vm.$mount(vm.$options.el)
     }
   }
 }
 
-export function initInternalComponent (vm: Component, options: InternalComponentOptions) {
+// 优化内部组件实例化，因为动态的选项merge很慢，内部组件需要特殊处理
+export function initInternalComponent(vm: Component, options: InternalComponentOptions) {
   const opts = vm.$options = Object.create(vm.constructor.options)
   // doing this because it's faster than dynamic enumeration.
   const parentVnode = options._parentVnode
@@ -90,7 +96,7 @@ export function initInternalComponent (vm: Component, options: InternalComponent
   }
 }
 
-export function resolveConstructorOptions (Ctor: Class<Component>) {
+export function resolveConstructorOptions(Ctor: Class<Component>) {
   let options = Ctor.options
   if (Ctor.super) {
     const superOptions = resolveConstructorOptions(Ctor.super)
@@ -114,7 +120,7 @@ export function resolveConstructorOptions (Ctor: Class<Component>) {
   return options
 }
 
-function resolveModifiedOptions (Ctor: Class<Component>): ?Object {
+function resolveModifiedOptions(Ctor: Class<Component>): ?Object {
   let modified
   const latest = Ctor.options
   const sealed = Ctor.sealedOptions

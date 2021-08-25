@@ -29,7 +29,7 @@ export function setActiveInstance(vm: Component) {
   }
 }
 
-export function initLifecycle (vm: Component) {
+export function initLifecycle(vm: Component) {
   const options = vm.$options
 
   // locate first non-abstract parent
@@ -55,7 +55,8 @@ export function initLifecycle (vm: Component) {
   vm._isBeingDestroyed = false
 }
 
-export function lifecycleMixin (Vue: Class<Component>) {
+// 在Vue原型上添加_update, $forceUpdate, $destory
+export function lifecycleMixin(Vue: Class<Component>) {
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this
     const prevEl = vm.$el
@@ -96,17 +97,21 @@ export function lifecycleMixin (Vue: Class<Component>) {
 
   Vue.prototype.$destroy = function () {
     const vm: Component = this
+    // 如果正在销毁，返回
     if (vm._isBeingDestroyed) {
       return
     }
+    // 暴露beforeDestroy
     callHook(vm, 'beforeDestroy')
     vm._isBeingDestroyed = true
     // remove self from parent
+    // 从父节点中销毁
     const parent = vm.$parent
     if (parent && !parent._isBeingDestroyed && !vm.$options.abstract) {
       remove(parent.$children, vm)
     }
     // teardown watchers
+    // 取消watcher监听
     if (vm._watcher) {
       vm._watcher.teardown()
     }
@@ -124,8 +129,10 @@ export function lifecycleMixin (Vue: Class<Component>) {
     // invoke destroy hooks on current rendered tree
     vm.__patch__(vm._vnode, null)
     // fire destroyed hook
+    // 暴露destoryed
     callHook(vm, 'destroyed')
     // turn off all instance listeners.
+    // 取消监听
     vm.$off()
     // remove __vue__ reference
     if (vm.$el) {
@@ -138,7 +145,7 @@ export function lifecycleMixin (Vue: Class<Component>) {
   }
 }
 
-export function mountComponent (
+export function mountComponent(
   vm: Component,
   el: ?Element,
   hydrating?: boolean
@@ -195,7 +202,7 @@ export function mountComponent (
   // since the watcher's initial patch may call $forceUpdate (e.g. inside child
   // component's mounted hook), which relies on vm._watcher being already defined
   new Watcher(vm, updateComponent, noop, {
-    before () {
+    before() {
       if (vm._isMounted && !vm._isDestroyed) {
         callHook(vm, 'beforeUpdate')
       }
@@ -212,7 +219,7 @@ export function mountComponent (
   return vm
 }
 
-export function updateChildComponent (
+export function updateChildComponent(
   vm: Component,
   propsData: ?Object,
   listeners: ?Object,
@@ -293,14 +300,14 @@ export function updateChildComponent (
   }
 }
 
-function isInInactiveTree (vm) {
+function isInInactiveTree(vm) {
   while (vm && (vm = vm.$parent)) {
     if (vm._inactive) return true
   }
   return false
 }
 
-export function activateChildComponent (vm: Component, direct?: boolean) {
+export function activateChildComponent(vm: Component, direct?: boolean) {
   if (direct) {
     vm._directInactive = false
     if (isInInactiveTree(vm)) {
@@ -318,7 +325,7 @@ export function activateChildComponent (vm: Component, direct?: boolean) {
   }
 }
 
-export function deactivateChildComponent (vm: Component, direct?: boolean) {
+export function deactivateChildComponent(vm: Component, direct?: boolean) {
   if (direct) {
     vm._directInactive = true
     if (isInInactiveTree(vm)) {
@@ -334,7 +341,7 @@ export function deactivateChildComponent (vm: Component, direct?: boolean) {
   }
 }
 
-export function callHook (vm: Component, hook: string) {
+export function callHook(vm: Component, hook: string) {
   // #7573 disable dep collection when invoking lifecycle hooks
   pushTarget()
   const handlers = vm.$options[hook]

@@ -9,12 +9,16 @@ import { query } from './util/index'
 import { compileToFunctions } from './compiler/index'
 import { shouldDecodeNewlines, shouldDecodeNewlinesForHref } from './util/compat'
 
+// 获取拥有传入id的元素的innerHTML
 const idToTemplate = cached(id => {
   const el = query(id)
   return el && el.innerHTML
 })
 
+// 缓存Vue.prototype.$mount
 const mount = Vue.prototype.$mount
+
+// 重写Vue.prototype.$mount
 Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
@@ -22,6 +26,7 @@ Vue.prototype.$mount = function (
   el = el && query(el)
 
   /* istanbul ignore if */
+  // 警告不能挂载document.body或html上
   if (el === document.body || el === document.documentElement) {
     process.env.NODE_ENV !== 'production' && warn(
       `Do not mount Vue to <html> or <body> - mount to normal elements instead.`
@@ -29,6 +34,7 @@ Vue.prototype.$mount = function (
     return this
   }
 
+  // 缓存$optinos
   const options = this.$options
   // resolve template/el and convert to render function
   if (!options.render) {
@@ -86,7 +92,8 @@ Vue.prototype.$mount = function (
  * Get outerHTML of elements, taking care
  * of SVG elements in IE as well.
  */
-function getOuterHTML (el: Element): string {
+// 获取元素的outerHTML
+function getOuterHTML(el: Element): string {
   if (el.outerHTML) {
     return el.outerHTML
   } else {
@@ -96,6 +103,7 @@ function getOuterHTML (el: Element): string {
   }
 }
 
+// 在Vue上添加compile 其值为上面导入进来的 compileToFunctions
 Vue.compile = compileToFunctions
 
 export default Vue

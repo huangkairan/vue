@@ -2,7 +2,8 @@
 
 import { toArray } from '../util/index'
 
-export function initUse (Vue: GlobalAPI) {
+// 在Vue上添加use方法，用来注册插件
+export function initUse(Vue: GlobalAPI) {
   Vue.use = function (plugin: Function | Object) {
     const installedPlugins = (this._installedPlugins || (this._installedPlugins = []))
     if (installedPlugins.indexOf(plugin) > -1) {
