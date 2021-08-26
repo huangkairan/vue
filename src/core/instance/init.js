@@ -72,7 +72,11 @@ export function initMixin(Vue: Class<Component>) {
 
     // 调用生命周期钩子函数
     callHook(vm, 'beforeCreate')
+
+    // 初始化inject
     initInjections(vm) // resolve injections before data/props
+
+    // 初始化state
     initState(vm)
     initProvide(vm) // resolve provide after data/props
     callHook(vm, 'created')
