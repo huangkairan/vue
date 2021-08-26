@@ -18,6 +18,7 @@ import {
   invokeWithErrorHandling
 } from '../util/index'
 
+// 保存正在渲染的实例的引用
 export let activeInstance: any = null
 export let isUpdatingChildComponent: boolean = false
 
@@ -30,23 +31,35 @@ export function setActiveInstance(vm: Component) {
 }
 
 export function initLifecycle(vm: Component) {
+  // 引用options
   const options = vm.$options
 
   // locate first non-abstract parent
+
+  // 引用parent父实例
+  // 此处到第56行的作用：将当前实例添加到父实例的 $children 属性里，并设置当前实例的 $parent 指向父实例
   let parent = options.parent
+
+  // 如果parent存在，且当前实例不是抽象的
+  // Vue中，只有keep-alive和transition是抽象的，抽象组件不会渲染真实DOM，也不会出现在父子关系中
   if (parent && !options.abstract) {
+    // 循环找到组件的第一个非抽象的父实例
     while (parent.$options.abstract && parent.$parent) {
       parent = parent.$parent
     }
+    // 此处，parent是一个非抽象的组件，将它作为当前实例的父级，将当前实例 vm 添加到父级的 $children 属性里
     parent.$children.push(vm)
   }
 
+  // 将$parent指向父级
   vm.$parent = parent
+  // 设置 $root 属性，有父级就是用父级的 $root，否则 $root 指向自身
   vm.$root = parent ? parent.$root : vm
 
+  // 属性的初始化
   vm.$children = []
   vm.$refs = {}
-
+  // 一些内部属性初始化
   vm._watcher = null
   vm._inactive = null
   vm._directInactive = false

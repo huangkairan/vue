@@ -50,14 +50,18 @@ export function initMixin(Vue: Class<Component>) {
     /* istanbul ignore else */
     // 非生产环境，执行initProxy，否则在实例上添加 _renderProxy 实例属性，该属性的值就是当前实例
     if (process.env.NODE_ENV !== 'production') {
-      //作用也是在实例对象 vm 上添加 _renderProxy 属性
+      //作用也是在实例对象 vm 上添加 _renderProxy 属性，区别在于会在支持Proxy的环境下用Proxy做代理
       initProxy(vm)
     } else {
       vm._renderProxy = vm
     }
     // expose real self
     // 执行一系列init，暴露beforeCreate和created生命周期
+
+    // _self 指向实例本身，和上面_renderProxy不同，_renderPeoxy可能是一个Proxy实例
     vm._self = vm
+
+    // 初始化生命周期
     initLifecycle(vm)
     initEvents(vm)
     initRender(vm)
