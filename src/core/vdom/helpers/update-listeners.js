@@ -33,8 +33,8 @@ const normalizeEvent = cached((name: string): {
   }
 })
 
-export function createFnInvoker (fns: Function | Array<Function>, vm: ?Component): Function {
-  function invoker () {
+export function createFnInvoker(fns: Function | Array<Function>, vm: ?Component): Function {
+  function invoker() {
     const fns = invoker.fns
     if (Array.isArray(fns)) {
       const cloned = fns.slice()
@@ -50,7 +50,7 @@ export function createFnInvoker (fns: Function | Array<Function>, vm: ?Component
   return invoker
 }
 
-export function updateListeners (
+export function updateListeners(
   on: Object,
   oldOn: Object,
   add: Function,
@@ -58,9 +58,13 @@ export function updateListeners (
   createOnceHandler: Function,
   vm: Component
 ) {
+  // 初始化
   let name, def, cur, old, event
+  // 遍历父组件的listener
   for (name in on) {
+    // def和cur 引用
     def = cur = on[name]
+    // 通过name拿旧的监听
     old = oldOn[name]
     event = normalizeEvent(name)
     /* istanbul ignore if */
@@ -68,11 +72,13 @@ export function updateListeners (
       cur = def.handler
       event.params = def.params
     }
+    // 如果cur不存在，警告
     if (isUndef(cur)) {
       process.env.NODE_ENV !== 'production' && warn(
         `Invalid handler for event "${event.name}": got ` + String(cur),
         vm
       )
+      // 如果旧的监听不存在
     } else if (isUndef(old)) {
       if (isUndef(cur.fns)) {
         cur = on[name] = createFnInvoker(cur, vm)

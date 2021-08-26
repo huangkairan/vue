@@ -10,10 +10,13 @@ import {
 import { updateListeners } from '../vdom/helpers/index'
 
 export function initEvents(vm: Component) {
+  // 初始化
   vm._events = Object.create(null)
   vm._hasHookEvent = false
   // init parent attached events
+  // 这个属性在创建子组件实例的时候会初始化 createComponentInstanceForVnode
   const listeners = vm.$options._parentListeners
+  //如果父组件有listener，则更新组件的listener
   if (listeners) {
     updateComponentListeners(vm, listeners)
   }
@@ -39,12 +42,14 @@ function createOnceHandler(event, fn) {
   }
 }
 
+// 更新listener
 export function updateComponentListeners(
   vm: Component,
   listeners: Object,
   oldListeners: ?Object
 ) {
   target = vm
+  // 传入父组件的listener和一些eventEmitter的方法
   updateListeners(listeners, oldListeners || {}, add, remove, createOnceHandler, vm)
   target = undefined
 }
