@@ -47,16 +47,23 @@ export function proxy(target: Object, sourceKey: string, key: string) {
 }
 
 export function initState(vm: Component) {
+  // 初始化_watchers，用来存储所有该组件实例的watcher对象
   vm._watchers = []
+  // 引用
   const opts = vm.$options
+  // 初始化props
   if (opts.props) initProps(vm, opts.props)
+  // 初始化methods
   if (opts.methods) initMethods(vm, opts.methods)
+  // 如果data有值，初始化data，否则给data赋值为{}，并观察
   if (opts.data) {
     initData(vm)
   } else {
     observe(vm._data = {}, true /* asRootData */)
   }
+  // 初始化computed
   if (opts.computed) initComputed(vm, opts.computed)
+  // 初始化watch，这边再次检查 避免watch是火狐浏览器上Object原型链上的watch
   if (opts.watch && opts.watch !== nativeWatch) {
     initWatch(vm, opts.watch)
   }
