@@ -17,17 +17,25 @@ import VNode, { createEmptyVNode } from '../vdom/vnode'
 import { isUpdatingChildComponent } from './lifecycle'
 
 export function initRender(vm: Component) {
+  // 在Vue实例上添加两个属性
+  // 子节点的根
   vm._vnode = null // the root of the child tree
+  // v-once的缓存tree
   vm._staticTrees = null // v-once cached trees
+  // 引用vm.$options
   const options = vm.$options
   const parentVnode = vm.$vnode = options._parentVnode // the placeholder node in parent tree
   const renderContext = parentVnode && parentVnode.context
+  // 在Vue实例上添加$slots和$scopedSlots
   vm.$slots = resolveSlots(options._renderChildren, renderContext)
   vm.$scopedSlots = emptyObject
   // bind the createElement fn to this instance
   // so that we get proper render context inside it.
   // args order: tag, data, children, normalizationType, alwaysNormalize
   // internal version is used by render functions compiled from templates
+
+  // 添加vm_c和$createElement，其实是对createElement的不同包装
+  // 区别在于最后一个参数alwaysNormalize的不同。
   vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false)
   // normalization is always applied for the public version, used in
   // user-written render functions.
@@ -35,9 +43,14 @@ export function initRender(vm: Component) {
 
   // $attrs & $listeners are exposed for easier HOC creation.
   // they need to be reactive so that HOCs using them are always updated
+
+  // $attrs & $listeners是为了更好的服务于高阶组件
   const parentData = parentVnode && parentVnode.data
 
   /* istanbul ignore else */
+
+  // 定义$attrs和$listeners，将他们都变成相应式数据，区别在于非生产环境在修改值时会有警告
+  // 这两个属性都是只读的。
   if (process.env.NODE_ENV !== 'production') {
     defineReactive(vm, '$attrs', parentData && parentData.attrs || emptyObject, () => {
       !isUpdatingChildComponent && warn(`$attrs is readonly.`, vm)

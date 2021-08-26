@@ -20,6 +20,8 @@ import {
 
 // 保存正在渲染的实例的引用
 export let activeInstance: any = null
+
+// 标记是否正在更新子组件
 export let isUpdatingChildComponent: boolean = false
 
 export function setActiveInstance(vm: Component) {
@@ -240,6 +242,7 @@ export function updateChildComponent(
   renderChildren: ?Array<VNode>
 ) {
   if (process.env.NODE_ENV !== 'production') {
+    // 标记正在更新组件
     isUpdatingChildComponent = true
   }
 
@@ -309,6 +312,7 @@ export function updateChildComponent(
   }
 
   if (process.env.NODE_ENV !== 'production') {
+    // 标记子组件更新完成
     isUpdatingChildComponent = false
   }
 }
