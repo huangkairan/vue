@@ -12,6 +12,7 @@ import { updateListeners } from '../vdom/helpers/index'
 export function initEvents(vm: Component) {
   // 初始化
   vm._events = Object.create(null)
+  // 用来存储有没有监听hook的事件： 如hook:created
   vm._hasHookEvent = false
   // init parent attached events
   // 这个属性在创建子组件实例的时候会初始化 createComponentInstanceForVnode
@@ -67,6 +68,7 @@ export function eventsMixin(Vue: Class<Component>) {
       (vm._events[event] || (vm._events[event] = [])).push(fn)
       // optimize hook:event cost by using a boolean flag marked at registration
       // instead of a hash lookup
+      // 判断events里有没有hook的监听事件
       if (hookRE.test(event)) {
         vm._hasHookEvent = true
       }

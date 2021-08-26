@@ -360,14 +360,18 @@ export function deactivateChildComponent(vm: Component, direct?: boolean) {
 
 export function callHook(vm: Component, hook: string) {
   // #7573 disable dep collection when invoking lifecycle hooks
+  // 看issue应该是解决了props被多次收集依赖的问题
   pushTarget()
+  // vm.$options[hook]已经是经过mergeOptionns处理后的数组。
   const handlers = vm.$options[hook]
   const info = `${hook} hook`
+  // 如果handlers存在，调用钩子，用try-catch包裹了一层错误处理
   if (handlers) {
     for (let i = 0, j = handlers.length; i < j; i++) {
       invokeWithErrorHandling(handlers[i], vm, null, vm, info)
     }
   }
+  // 如果实例上有有监听hook的事件，则emit出去
   if (vm._hasHookEvent) {
     vm.$emit('hook:' + hook)
   }
