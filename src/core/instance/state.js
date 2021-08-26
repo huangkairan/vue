@@ -29,6 +29,7 @@ import {
   invokeWithErrorHandling
 } from '../util/index'
 
+// defineProperty 第三个参数的一些共享配置
 const sharedPropertyDefinition = {
   enumerable: true,
   configurable: true,
@@ -36,6 +37,7 @@ const sharedPropertyDefinition = {
   set: noop
 }
 
+// 通过defineProperty 对每个key代理到Vue实例上
 export function proxy(target: Object, sourceKey: string, key: string) {
   sharedPropertyDefinition.get = function proxyGetter() {
     return this[sourceKey][key]
@@ -120,9 +122,13 @@ function initProps(vm: Component, propsOptions: Object) {
 
 function initData(vm: Component) {
   let data = vm.$options.data
+  // $options.data在mergeOptions时被处理成了fn，这里再次判断是因为
+  // 在mergeOptions和initState之间call了beforeCreate
+  // 如果用户在beforeCreate修改了this.$options.data，就不再是fn
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
+  // 如果data返回不是一个对象，初始化data为空
   if (!isPlainObject(data)) {
     data = {}
     process.env.NODE_ENV !== 'production' && warn(
@@ -132,11 +138,13 @@ function initData(vm: Component) {
     )
   }
   // proxy data on instance
+  // 拿所有key
   const keys = Object.keys(data)
   const props = vm.$options.props
   const methods = vm.$options.methods
   let i = keys.length
   while (i--) {
+    //依次获取每个key
     const key = keys[i]
     if (process.env.NODE_ENV !== 'production') {
       if (methods && hasOwn(methods, key)) {
@@ -146,22 +154,27 @@ function initData(vm: Component) {
         )
       }
     }
+    // 检查这个key在props上是否有定义
     if (props && hasOwn(props, key)) {
       process.env.NODE_ENV !== 'production' && warn(
         `The data property "${key}" is already declared as a prop. ` +
         `Use prop default value instead.`,
         vm
       )
+      // 检查key是否不以$或_开头，这俩开头意味着是Vue的内部属性
     } else if (!isReserved(key)) {
+      // 代理
       proxy(vm, `_data`, key)
     }
   }
-  // observe data
+  // 将对象转换成响应式对象
   observe(data, true /* asRootData */)
 }
 
+// 调用data函数并返回
 export function getData(data: Function, vm: Component): any {
   // #7573 disable dep collection when invoking data getters
+  // 还是防止重复触发依赖getter
   pushTarget()
   try {
     return data.call(vm, vm)
