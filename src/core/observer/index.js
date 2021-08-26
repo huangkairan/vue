@@ -22,9 +22,11 @@ const arrayKeys = Object.getOwnPropertyNames(arrayMethods)
  * In some cases we may want to disable observation inside a component's
  * update computation.
  */
+// 为true表示需要观察，为false：不需要观察，通过下方toggleObserving来控制。
 export let shouldObserve: boolean = true
 
-export function toggleObserving (value: boolean) {
+// 控制是否需要观察
+export function toggleObserving(value: boolean) {
   shouldObserve = value
 }
 
@@ -39,15 +41,33 @@ export class Observer {
   dep: Dep;
   vmCount: number; // number of vms that have this object as root $data
 
-  constructor (value: any) {
+  constructor(value: any) {
+    // 引用传进来的数据
     this.value = value
+    // dep new了一个Dep实例，作用是收集依赖
     this.dep = new Dep()
+    // 初始化vmCount
     this.vmCount = 0
+    // 为value定义一个__ob__属性，值是当前的Observer实例
     def(value, '__ob__', this)
+    // data={a:1}经过def处理后：
+    // data = {
+    //a: 1,
+    // __ob__ 是不可枚举的属性
+    //__ob__: {
+    //value: data, // value 属性指向 data 数据对象本身，这是一个循环引用
+    //dep: dep实例对象, // new Dep()
+    //vmCount: 0
+    //}
+    // 区分传来的是数组还是对象，两者的处理方式不同
+    // 数组原生有很多方法 如pop push shift ....
     if (Array.isArray(value)) {
+      // 如果环境支持__proto__
       if (hasProto) {
+        // 将value的__proto__指向由变异数组方法组成的对象，代理
         protoAugment(value, arrayMethods)
       } else {
+        // 如果环境不支持__proto__，做一些polyfill
         copyAugment(value, arrayMethods, arrayKeys)
       }
       this.observeArray(value)
@@ -61,7 +81,9 @@ export class Observer {
    * getter/setters. This method should only be called when
    * value type is Object.
    */
-  walk (obj: Object) {
+  //使用 Object.keys(obj) 获取对象所有可枚举的属性
+  //然后使用 for 循环遍历这些属性，同时为每个属性调用了 defineReactive 函数。
+  walk(obj: Object) {
     const keys = Object.keys(obj)
     for (let i = 0; i < keys.length; i++) {
       defineReactive(obj, keys[i])
@@ -71,7 +93,7 @@ export class Observer {
   /**
    * Observe a list of Array items.
    */
-  observeArray (items: Array<any>) {
+  observeArray(items: Array<any>) {
     for (let i = 0, l = items.length; i < l; i++) {
       observe(items[i])
     }
@@ -84,7 +106,7 @@ export class Observer {
  * Augment a target Object or Array by intercepting
  * the prototype chain using __proto__
  */
-function protoAugment (target, src: Object) {
+function protoAugment(target, src: Object) {
   /* eslint-disable no-proto */
   target.__proto__ = src
   /* eslint-enable no-proto */
@@ -95,7 +117,7 @@ function protoAugment (target, src: Object) {
  * hidden properties.
  */
 /* istanbul ignore next */
-function copyAugment (target: Object, src: Object, keys: Array<string>) {
+function copyAugment(target: Object, src: Object, keys: Array<string>) {
   for (let i = 0, l = keys.length; i < l; i++) {
     const key = keys[i]
     def(target, key, src[key])
@@ -107,20 +129,31 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
  */
-export function observe (value: any, asRootData: ?boolean): Observer | void {
+// 接受两个参数，第一个为观察的数据，第二个为是否是根数据的布尔
+export function observe(value: any, asRootData: ?boolean): Observer | void {
+  // 如果观察的数据不是对象， 或观察的数据是VNode的实例，则结束
   if (!isObject(value) || value instanceof VNode) {
     return
   }
+  // 定义ob 来保存Observer实例
   let ob: Observer | void
+  // 如果观察的对象里有__ob__属性（意味着已经被观察了） 并且__ob__是Observer的实例；直接赋值__ob__的引用，避免呢重复观察
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
+    // 走到这里意味着对象未被观察
   } else if (
+    // 需要观察
     shouldObserve &&
+    // 不是服务端渲染
     !isServerRendering() &&
+    // 只有当数据是数组或纯对象
     (Array.isArray(value) || isPlainObject(value)) &&
+    // 对象是可扩展的（普通对象都是可扩展的，除非用Object.preventExtensions()、Object.freeze() 以及 Object.seal()）
     Object.isExtensible(value) &&
+    // Vue实例有_isVue属性，这里用来避免Vue实例对象被观察
     !value._isVue
   ) {
+    // new一个Observer实例
     ob = new Observer(value)
   }
   if (asRootData && ob) {
@@ -132,37 +165,55 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
 /**
  * Define a reactive property on an Object.
  */
-export function defineReactive (
+export function defineReactive(
   obj: Object,
   key: string,
   val: any,
   customSetter?: ?Function,
   shallow?: boolean
 ) {
+  // new 一个Dep实例
   const dep = new Dep()
 
+  // 拿到对象的描述对象
   const property = Object.getOwnPropertyDescriptor(obj, key)
+  // 如果对象是不可配置的，结束
   if (property && property.configurable === false) {
     return
   }
 
   // cater for pre-defined getter/setters
+  // 拿到数据的描述对象中的get和set
   const getter = property && property.get
   const setter = property && property.set
+  //如果。。。 并且只传了两个参数（只传了obj和key）直接赋值；否则val还是undefined
+  // 见issue 7302
   if ((!getter || setter) && arguments.length === 2) {
     val = obj[key]
   }
 
+  // 没传shallow参数，深度观察，规避val是个对象的情况
+  // 之前的$attrs和$listener时，shallow都传了true，只会做浅层的观察
   let childOb = !shallow && observe(val)
+  // 
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
-    get: function reactiveGetter () {
+    get: function reactiveGetter() {
+      // 如果属性原来的getter存在，调用getter；否则返回val（在get最后）
       const value = getter ? getter.call(obj) : val
+      //Dep.target 中保存的值就是要被收集的依赖(观察者)；如果有 说明这个依赖要被收集
       if (Dep.target) {
+        // 闭包引用了上面的dep实例，依赖被收集了
         dep.depend()
+        // 如果childOb存在
+        // 作用：除了要将依赖收集到属性自己这里之外，还要将同样的依赖收集到 data.属性.__ob__.dep 里
+        // 因为defineProperty没法拦截到给对象添加新属性的操作
+        // 收集到自己这的依赖当属性值被set时就会触发
+        // 而收集到data.属性.__ob__.dep中的依赖会在使用 $set 或 Vue.set 给数据对象添加新属性时触发
         if (childOb) {
           childOb.dep.depend()
+          // 如果value是个数组，则遍历收集依赖
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -170,24 +221,30 @@ export function defineReactive (
       }
       return value
     },
-    set: function reactiveSetter (newVal) {
+    set: function reactiveSetter(newVal) {
+      // 重新拿一次getter后的值（如果有getter的话）
       const value = getter ? getter.call(obj) : val
       /* eslint-disable no-self-compare */
+      // 将新value和旧value对比，如果相同就结束
       if (newVal === value || (newVal !== newVal && value !== value)) {
         return
       }
       /* eslint-enable no-self-compare */
+      // 非生产，自己定义了customSetter，则执行；这里在initRender里有传，作用是setter时log了一些信息
       if (process.env.NODE_ENV !== 'production' && customSetter) {
         customSetter()
       }
       // #7981: for accessor properties without setter
       if (getter && !setter) return
+      // 还是一样，如果属性原来就有setter，调用setter；否则直接赋值
       if (setter) {
         setter.call(obj, newVal)
       } else {
         val = newVal
       }
+      // 避免childOb
       childOb = !shallow && observe(newVal)
+      // 闭包引用了上面的dep实例，当set时，触发所有在get时收集到的依赖
       dep.notify()
     }
   })
@@ -198,7 +255,7 @@ export function defineReactive (
  * triggers change notification if the property doesn't
  * already exist.
  */
-export function set (target: Array<any> | Object, key: any, val: any): any {
+export function set(target: Array<any> | Object, key: any, val: any): any {
   if (process.env.NODE_ENV !== 'production' &&
     (isUndef(target) || isPrimitive(target))
   ) {
@@ -233,7 +290,7 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
 /**
  * Delete a property and trigger change if necessary.
  */
-export function del (target: Array<any> | Object, key: any) {
+export function del(target: Array<any> | Object, key: any) {
   if (process.env.NODE_ENV !== 'production' &&
     (isUndef(target) || isPrimitive(target))
   ) {
@@ -265,7 +322,7 @@ export function del (target: Array<any> | Object, key: any) {
  * Collect dependencies on array elements when the array is touched, since
  * we cannot intercept array element access like property getters.
  */
-function dependArray (value: Array<any>) {
+function dependArray(value: Array<any>) {
   for (let e, i = 0, l = value.length; i < l; i++) {
     e = value[i]
     e && e.__ob__ && e.__ob__.dep.depend()
