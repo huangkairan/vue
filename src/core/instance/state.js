@@ -75,6 +75,7 @@ function initProps(vm: Component, propsOptions: Object) {
   // cache prop keys so that future props updates can iterate using Array
   // instead of dynamic object key enumeration.
   const keys = vm.$options._propKeys = []
+  // 通过判断vm.$parent是否存在来判断是否是根节点
   const isRoot = !vm.$parent
   // root instance props should be converted
   if (!isRoot) {
