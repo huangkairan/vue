@@ -16,16 +16,20 @@ export const MAX_UPDATE_COUNT = 100
 
 const queue: Array<Watcher> = []
 const activatedChildren: Array<Component> = []
+// 异步更新时保存Watcher实例的id，避免重复添加Watcher到队列。
 let has: { [key: number]: ?true } = {}
 let circular: { [key: number]: number } = {}
+// 等待标识，queueWatcher执行一次后会被set为true
 let waiting = false
+
+// 标示是否正在更新
 let flushing = false
 let index = 0
 
 /**
  * Reset the scheduler's state.
  */
-function resetSchedulerState () {
+function resetSchedulerState() {
   index = queue.length = activatedChildren.length = 0
   has = {}
   if (process.env.NODE_ENV !== 'production') {
@@ -68,7 +72,7 @@ if (inBrowser && !isIE) {
 /**
  * Flush both queues and run the watchers.
  */
-function flushSchedulerQueue () {
+function flushSchedulerQueue() {
   currentFlushTimestamp = getNow()
   flushing = true
   let watcher, id
@@ -127,7 +131,7 @@ function flushSchedulerQueue () {
   }
 }
 
-function callUpdatedHooks (queue) {
+function callUpdatedHooks(queue) {
   let i = queue.length
   while (i--) {
     const watcher = queue[i]
@@ -142,14 +146,14 @@ function callUpdatedHooks (queue) {
  * Queue a kept-alive component that was activated during patch.
  * The queue will be processed after the entire tree has been patched.
  */
-export function queueActivatedComponent (vm: Component) {
+export function queueActivatedComponent(vm: Component) {
   // setting _inactive to false here so that a render function can
   // rely on checking whether it's in an inactive tree (e.g. router-view)
   vm._inactive = false
   activatedChildren.push(vm)
 }
 
-function callActivatedHooks (queue) {
+function callActivatedHooks(queue) {
   for (let i = 0; i < queue.length; i++) {
     queue[i]._inactive = true
     activateChildComponent(queue[i], true /* true */)
@@ -161,15 +165,27 @@ function callActivatedHooks (queue) {
  * Jobs with duplicate IDs will be skipped unless it's
  * pushed when the queue is being flushed.
  */
-export function queueWatcher (watcher: Watcher) {
+
+// “同步更新”会导致什么问题？很显然这会导致每次属性值的变化都会引发一次重新渲染，假设我们要修改两个属性的值，那么同步更新将导致两次的重渲染
+
+// 接受一个观察者对象实例
+export function queueWatcher(watcher: Watcher) {
+  // 拿到watcher的id
   const id = watcher.id
+  // 判断id是否存在于has这个Map中，如果存在则直接结束，因为一个Watcher不用存多个，才能达到避免重复入队的作用
   if (has[id] == null) {
+    // 如果不存在，将该属性设为true
     has[id] = true
+    // 放入队列 queue 中的所有观察者将会在突变完成之后统一执行更新，当更新开始时会将 flushing 变量的值设置为 true，代表着此时正在执行更新。初始为false，表示没再更新
+    // 没在更新时，watcher入队
     if (!flushing) {
       queue.push(watcher)
+      // 如果正在更新。如更新时执行了渲染函数的更新，渲染函数内有computed的存在
+      // 由于计算属性在实现方式上与普通响应式属性有所不同，所以当触发计算属性的 get 拦截器函数时会有观察者入队的行为，这个时候我们需要特殊处理
     } else {
       // if already flushing, splice the watcher based on its id
       // if already past its id, it will be run next immediately.
+      // 保证了观察者的执行顺序，依次放入队列
       let i = queue.length - 1
       while (i > index && queue[i].id > watcher.id) {
         i--
@@ -178,12 +194,15 @@ export function queueWatcher (watcher: Watcher) {
     }
     // queue the flush
     if (!waiting) {
+      // set为true保证只执行一次
       waiting = true
 
+      // 同步执行的情况
       if (process.env.NODE_ENV !== 'production' && !config.async) {
         flushSchedulerQueue()
         return
       }
+      // 异步执行时，将flushSchedulerQueue这个fn为参数传入nextTick调用
       nextTick(flushSchedulerQueue)
     }
   }
