@@ -31,17 +31,21 @@ export function def(obj: Object, key: string, val: any, enumerable?: boolean) {
 /**
  * Parse simple path.
  */
+// 当传入的expOrFn为'obj.a'这种情况时，
 const bailRE = new RegExp(`[^${unicodeRegExp.source}.$_\\d]`)
 export function parsePath(path: string): any {
   if (bailRE.test(path)) {
     return
   }
+  // 将字符串用.分割
   const segments = path.split('.')
+  // 遍历，访问到指定的属性，触发get拦截器fn
   return function (obj) {
     for (let i = 0; i < segments.length; i++) {
       if (!obj) return
       obj = obj[segments[i]]
     }
+    // 返回新的函数
     return obj
   }
 }

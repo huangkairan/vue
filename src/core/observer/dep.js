@@ -15,26 +15,30 @@ export default class Dep {
   id: number;
   subs: Array<Watcher>;
 
-  constructor () {
+  constructor() {
     this.id = uid++
     this.subs = []
   }
 
-  addSub (sub: Watcher) {
+  // 将Watcher实例添加至subs数组
+  // 收集观察者
+  addSub(sub: Watcher) {
     this.subs.push(sub)
   }
 
-  removeSub (sub: Watcher) {
+  removeSub(sub: Watcher) {
     remove(this.subs, sub)
   }
 
-  depend () {
+  depend() {
+    // Dep.target保存了一个观察者对象，这个对象就是即将要收集的目标，判断是否存在。
     if (Dep.target) {
+      // 如果存在，调用Watcher的addDep方法
       Dep.target.addDep(this)
     }
   }
 
-  notify () {
+  notify() {
     // stabilize the subscriber list first
     const subs = this.subs.slice()
     if (process.env.NODE_ENV !== 'production' && !config.async) {
@@ -54,13 +58,13 @@ export default class Dep {
 // can be evaluated at a time.
 Dep.target = null
 const targetStack = []
-
-export function pushTarget (target: ?Watcher) {
+// 为 Dep.target 属性赋值，target是调用该函数的观察者对象，所以Dep.target保存了一个观察者对象，这个对象就是即将要收集的目标
+export function pushTarget(target: ?Watcher) {
   targetStack.push(target)
   Dep.target = target
 }
 
-export function popTarget () {
+export function popTarget() {
   targetStack.pop()
   Dep.target = targetStack[targetStack.length - 1]
 }

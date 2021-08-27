@@ -160,14 +160,20 @@ export function lifecycleMixin(Vue: Class<Component>) {
   }
 }
 
+// 挂载组件
 export function mountComponent(
   vm: Component,
   el: ?Element,
   hydrating?: boolean
 ): Component {
+  //在组件实例对象上添加 $el 属性，其值为挂载元素 el
+  // 如果组件有template，$el则为template根元素的引用。因为后面$el会在_update时被patch重写
   vm.$el = el
+  // 判断是否有render函数
   if (!vm.$options.render) {
+    // 如果没有，将render设为创建一个空的vnode
     vm.$options.render = createEmptyVNode
+    //非生产，警告
     if (process.env.NODE_ENV !== 'production') {
       /* istanbul ignore if */
       if ((vm.$options.template && vm.$options.template.charAt(0) !== '#') ||
@@ -186,10 +192,13 @@ export function mountComponent(
       }
     }
   }
+  //触发 beforeMount生命周期
   callHook(vm, 'beforeMount')
-
+  // 定义并初始化 updateComponent 函数
   let updateComponent
   /* istanbul ignore if */
+  // 非生产，增加了计算性能的环节
+  // 无论走if还是else，核心都是将vm_update绑定到updateComponent上
   if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
     updateComponent = () => {
       const name = vm._name
@@ -198,11 +207,13 @@ export function mountComponent(
       const endTag = `vue-perf-end:${id}`
 
       mark(startTag)
+      // 调用 vm.$options.render 函数并返回生成的虚拟节点(vnode
       const vnode = vm._render()
       mark(endTag)
       measure(`vue ${name} render`, startTag, endTag)
 
       mark(startTag)
+      // 把 vm._render 函数生成的虚拟节点渲染成真正的 DOM
       vm._update(vnode, hydrating)
       mark(endTag)
       measure(`vue ${name} patch`, startTag, endTag)
@@ -216,7 +227,16 @@ export function mountComponent(
   // we set this to vm._watcher inside the watcher's constructor
   // since the watcher's initial patch may call $forceUpdate (e.g. inside child
   // component's mounted hook), which relies on vm._watcher being already defined
+  // new一个Watcher实例
+  // Watcher 观察者实例将对 updateComponent 函数求值
+  // updateComponent 函数的执行会间接触发渲染函数(vm.$options.render)的执行
+  // 而渲染函数的执行则会触发数据属性的 get 拦截器函数，从而将依赖(观察者)收集
+  // 当数据变化时将重新执行 updateComponent 函数，这就完成了重新渲染。
+  // 同时我们把代码中实例化的观察者对象称为 渲染函数的观察者。
+
+  // 第五个参数标记是在为渲染函数创建观察者对象
   new Watcher(vm, updateComponent, noop, {
+    // 当数据变化之后，触发更新之前，如果 vm._isMounted 属性的值为真，则会调用 beforeUpdate 生命周期钩子。
     before() {
       if (vm._isMounted && !vm._isDestroyed) {
         callHook(vm, 'beforeUpdate')

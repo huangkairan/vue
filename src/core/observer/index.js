@@ -205,6 +205,8 @@ export function defineReactive(
       // 如果属性原来的getter存在，调用getter；否则返回val（在get最后）
       const value = getter ? getter.call(obj) : val
       //Dep.target 中保存的值就是要被收集的依赖(观察者)；如果有 说明这个依赖要被收集
+
+      // 当用{{}}读取属性时，会触发getter，收集依赖
       if (Dep.target) {
         // 闭包引用了上面的dep实例，依赖被收集了
         dep.depend()
