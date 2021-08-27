@@ -63,6 +63,7 @@ export class Observer {
     // 数组原生有很多方法 如pop push shift ....
     if (Array.isArray(value)) {
       // 如果环境支持__proto__
+      // 这里不管是走if或else，都是为了将数组的__proto__指向由变异数组方法组成的对象
       if (hasProto) {
         // 将value的__proto__指向由变异数组方法组成的对象，代理
         protoAugment(value, arrayMethods)
@@ -70,6 +71,7 @@ export class Observer {
         // 如果环境不支持__proto__，做一些polyfill
         copyAugment(value, arrayMethods, arrayKeys)
       }
+      // 递归观察数组中的值，observeArray方法中又会对依赖依次new Observer，这样保证了数组/对象内嵌套数组/对象的情况。
       this.observeArray(value)
     } else {
       this.walk(value)
@@ -322,9 +324,11 @@ export function del(target: Array<any> | Object, key: any) {
  * Collect dependencies on array elements when the array is touched, since
  * we cannot intercept array element access like property getters.
  */
+// 递归使得数组内的所有数据都收集依赖
 function dependArray(value: Array<any>) {
   for (let e, i = 0, l = value.length; i < l; i++) {
     e = value[i]
+    // 如果该数据有__ob__和__ob__.dep，说明该数据也是数组（因为数组通过索引改值无法触发响应），则递归收集依赖
     e && e.__ob__ && e.__ob__.dep.depend()
     if (Array.isArray(e)) {
       dependArray(e)
