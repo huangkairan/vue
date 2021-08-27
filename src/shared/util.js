@@ -66,6 +66,7 @@ export function isRegExp(v: any): boolean {
 /**
  * Check if val is a valid array index.
  */
+// 保证是大于0的整数，并且是有限的
 export function isValidArrayIndex(val: any): boolean {
   const n = parseFloat(String(val))
   return n >= 0 && Math.floor(n) === n && isFinite(val)
