@@ -38,15 +38,18 @@ export default class Dep {
     }
   }
 
+  // 遍历当前Dep对象的subs中所有观察者对象，调用观察者对象的update方法，触发响应
   notify() {
     // stabilize the subscriber list first
     const subs = this.subs.slice()
+    // 判断是否同步执行观察者，由于subs是无序的，所以如果要同步，则排序，依次执行
     if (process.env.NODE_ENV !== 'production' && !config.async) {
       // subs aren't sorted in scheduler if not running async
       // we need to sort them now to make sure they fire in correct
       // order
       subs.sort((a, b) => a.id - b.id)
     }
+    // 如果不是同步执行，遍历update
     for (let i = 0, l = subs.length; i < l; i++) {
       subs[i].update()
     }

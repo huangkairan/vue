@@ -48,6 +48,7 @@ export default class Watcher {
   // 这四个属性实现避免收集重复依赖，且移除无用依赖的功能也依赖于它们
   // 上一次求值过程中所收集到的 Dep 实例对象。
   deps: Array<Dep>;
+  // 本次求值中收集来的依赖，避免本次求值依赖重复收集
   newDeps: Array<Dep>;
   // depIds用来避免在多次求值中的依赖重复收集
   // 上一次求值过程中所收集到的 Dep 实例对象。
@@ -170,7 +171,7 @@ export default class Watcher {
    */
   // 接受一个Dep对象
   addDep(dep: Dep) {
-    // 定义一个敞亮，Dep实例的id
+    // 定义一个常量，Dep实例的id
     const id = dep.id
     // 这个id配合newDepIds和newDeps，来避免重复收集依赖
     // 这里的避免重复收集依赖原因：
@@ -218,12 +219,17 @@ export default class Watcher {
    * Subscriber interface.
    * Will be called when a dependency changes.
    */
+  // 
   update() {
     /* istanbul ignore else */
+    // 如果是计算属性，将dirty的值同步为true
     if (this.lazy) {
       this.dirty = true
+      // 如果是同步更新变化
     } else if (this.sync) {
       this.run()
+      // 如果是异步，则放入一个异步更新的队列中，这个队列会在调用栈被清空之后按照一定的顺序执行
+      // 在渲染函数中，就是异步的
     } else {
       queueWatcher(this)
     }
@@ -234,8 +240,17 @@ export default class Watcher {
    * Will be called by the scheduler.
    */
   run() {
+    // 如果为活跃状态
     if (this.active) {
+      // 对于渲染函数的观察者来说，重新求值 = 重新渲染，最终结果是重新生成一个vnode，并根据vnode生成真实dom
       const value = this.get()
+      // 对于渲染函数的观察者来讲并不会执行这个 if 语句块
+      // 因为this.get 方法的返回值其实就等价于 updateComponent 函数的返回值
+      // 这个值将永远都是 undefined，因为updateComponent的作用是根据虚拟DOM渲染出真实DOM，并没有返回值
+
+      // 而对于非渲染函数的观察者，就会继续往下走了
+      // 比较两次新旧求值的结果，如果不同；或值相等的情况下，value是个对象，两次值的引用相同（因为都是data.xxx），或深度观察时
+      // 执行回调
       if (
         value !== this.value ||
         // Deep watchers and watchers on Object/Arrays should fire even
@@ -245,11 +260,16 @@ export default class Watcher {
         this.deep
       ) {
         // set new value
+        // 缓存旧值
         const oldValue = this.value
+        // 保存新值
         this.value = value
+        // 如果这个观察者是开发者定义的 如通过watch api 或$watch时，回调可能是无法预计的，使用错误处理包裹，调用
         if (this.user) {
+          // 出错时的错误信息
           const info = `callback for watcher "${this.expression}"`
           invokeWithErrorHandling(this.cb, this.vm, [value, oldValue], this.vm, info)
+          //如果是Vue内部的观察者，直接调用回调
         } else {
           this.cb.call(this.vm, value, oldValue)
         }
