@@ -299,18 +299,26 @@ export default class Watcher {
   /**
    * Remove self from all dependencies' subscriber list.
    */
+  // 解除当前观察者对属性的观察
   teardown() {
+    // 如果当前状态为活跃 为假则说明该观察者已经不处于激活状态，什么都不需要做
     if (this.active) {
       // remove self from vm's watcher list
       // this is a somewhat expensive operation so we skip it
       // if the vm is being destroyed.
+
+      // 如果当前组件实例没有被销毁，将当前观察者实例从组件实例对象的 vm._watchers 数组中移除
       if (!this.vm._isBeingDestroyed) {
         remove(this.vm._watchers, this)
       }
+      // 一个属性成为响应式数据后，Watcher实例对象会将Dep实例对象收集，同时，Dep实例对象也将收集Watcher实例对象。这是一个双向的过程
+      // 并且一个观察者可以同时观察多个属性，这些属性的 Dep 实例对象都会被收集到该观察者实例对象的 this.deps 数组中
+      // 所以将当前观察者实例对象从所有的 Dep 实例对象中移除
       let i = this.deps.length
       while (i--) {
         this.deps[i].removeSub(this)
       }
+      // 最后，将当前观察者实例设为非活跃
       this.active = false
     }
   }

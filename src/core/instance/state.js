@@ -324,16 +324,23 @@ function initWatch(vm: Component, watch: Object) {
   }
 }
 
+// 主要的作用还是将传来的cb对象规范一下，然后将规范后的参数传入$watch方法调用
 function createWatcher(
   vm: Component,
   expOrFn: string | Function,
   handler: any,
   options?: Object
 ) {
+  // 判断handler是否是对象；这边虽然在定义Vue.property.$watch时判断了handler是否为对象
+  // 此处再判断一次是因为，这个方法还会用于watch option。
+  // 如果 handler 是一个纯对象，那么就将变量 handler（对象：{handler:()=>{},immediate:boolean,deep:boolean}）
+  // 的值赋给 options 变量，然后用 handler.handler 的值（函数）重写 handler 变量的值
   if (isPlainObject(handler)) {
     options = handler
     handler = handler.handler
   }
+  // 这里标识handler还能是个string，读取组件实例对象的 handler 属性的值并用该值重写 handler 的值。然后再通过调用 $watch 方法创建观察者
+  // 这里的目的是，我们知道methods的定义会添加到Vue原型上，此处会将methods里的同名方法定义给handler
   if (typeof handler === 'string') {
     handler = vm[handler]
   }
@@ -370,26 +377,36 @@ export function stateMixin(Vue: Class<Component>) {
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
 
+  // 观察数据对象的某个属性，当属性变化时执行回调
+  // 第二个参数既可以是一个回调函数，也可以是一个纯对象，这个对象中可以包含 handler 属性，该属性的值将作为回调函数.同时该对象还可以包含其他属性作为选项参数，如 immediate 或 deep。
   Vue.prototype.$watch = function (
     expOrFn: string | Function,
     cb: any,
     options?: Object
   ): Function {
+    // 当前组件实例对象
     const vm: Component = this
+    // 如果cb是对象
     if (isPlainObject(cb)) {
       return createWatcher(vm, expOrFn, cb, options)
     }
+    // 走到这，说明cb是个fn
+    // options如果没传，赋值一个空对象
     options = options || {}
+    // 标识是用户创建的user
     options.user = true
+    // 创建一个Watcher实例
     const watcher = new Watcher(vm, expOrFn, cb, options)
     // 这tm？ 回溯？ 刚开始看，挖个坑 后面再详看
+    // 判断是否立刻执行，如果立刻则直接执行回调函数，不过此时的回调函数只有旧的值
     if (options.immediate) {
       const info = `callback for immediate watcher "${watcher.expression}"`
       pushTarget()
+      // 这里看到，旧的值是通过之前创建的watcher实例对象的value属性拿的
       invokeWithErrorHandling(cb, vm, [watcher.value], vm, info)
       popTarget()
     }
-    // 返回一个取消watch的方法
+    // 如果callback是函数，则返回一个取消watch的方法
     return function unwatchFn() {
       watcher.teardown()
     }

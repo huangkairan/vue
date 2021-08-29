@@ -26,6 +26,7 @@ export default class Dep {
     this.subs.push(sub)
   }
 
+  // 将观察者对象从subs数组中移除
   removeSub(sub: Watcher) {
     remove(this.subs, sub)
   }
