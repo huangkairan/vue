@@ -186,17 +186,28 @@ export function getData(data: Function, vm: Component): any {
   }
 }
 
+// computed默认是惰性的
 const computedWatcherOptions = { lazy: true }
 
+// 接收两个参数，第一个参数是组件对象实例，第二个参数是对应的选项
 function initComputed(vm: Component, computed: Object) {
   // $flow-disable-line
+  // 相同引用一个空对象
   const watchers = vm._computedWatchers = Object.create(null)
   // computed properties are just getters during SSR
+  // 判断是否是服务端渲染
   const isSSR = isServerRendering()
 
+  // 遍历computed对象
   for (const key in computed) {
+    // 计算属性对象中相应的属性值
     const userDef = computed[key]
+
+    // cmoputed也有两种写法，函数或对象
+    // 如果是函数的话，直接赋值给getter；如果是对象，则取其get
+    // 总之getter会是一个函数
     const getter = typeof userDef === 'function' ? userDef : userDef.get
+    // getter不能为null
     if (process.env.NODE_ENV !== 'production' && getter == null) {
       warn(
         `Getter is missing for computed property "${key}".`,
@@ -204,8 +215,14 @@ function initComputed(vm: Component, computed: Object) {
       )
     }
 
+    // 非服务端渲染，创建了一个观察者实例对象，我们称之为计算属性的观察者，同时会把计算属性的观察者添加到 watchers 常量对象中
+    // watchers 常量与 vm._computedWatchers 属性具有相同的引用
+    // 所以对 watchers 常量的修改相当于对 vm._computedWatchers 属性的修改
+    // vm._computedWatchers 对象是用来存储计算属性观察者的。
     if (!isSSR) {
       // create internal watcher for the computed property.
+
+      // 第四个参数是options，可以包括deep immediate等，这里传了个lazy：true标识是computed的观察者
       watchers[key] = new Watcher(
         vm,
         getter || noop,
@@ -217,6 +234,14 @@ function initComputed(vm: Component, computed: Object) {
     // component-defined computed properties are already defined on the
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
+
+    // 首先检查计算属性的名字是否已经存在于组件实例对象中，在初始化计算属性之前已经初始化了 props、methods 和 data 选项，
+    // 并且这些选项数据都会定义在组件实例对象上，由于计算属性也需要定义在组件实例对象上
+    // 所以需要使用计算属性的名字检查组件实例对象上是否已经有了同名的定义
+    // 如果该名字已经定义在组件实例对象上，那么有可能是 data 数据或 props 数据或 methods 数据之一
+    // 对于 data 和 props 来讲他们是不允许被 computed 选项中的同名属性覆盖的
+    // 所以在非生产环境中还要检查计算属性中是否存在与 data 和 props 选项同名的属性
+    // 如果有则会打印警告信息。如果没有则调用 defineComputed 定义计算属性。
     if (!(key in vm)) {
       defineComputed(vm, key, userDef)
     } else if (process.env.NODE_ENV !== 'production') {
@@ -231,17 +256,22 @@ function initComputed(vm: Component, computed: Object) {
   }
 }
 
+// 通过 Object.defineProperty 函数在组件实例对象上定义与计算属性同名的组件实例属性
 export function defineComputed(
   target: any,
   key: string,
   userDef: Object | Function
 ) {
+  // 非服务端渲染，缓存
   const shouldCache = !isServerRendering()
+  // 如果是定义的computed是函数，cache情况，将函数名传入调用createComputedGetter，将返回值作为sharedPropertyDefinition.get
+  // 服务端渲染情况，将这个函数作为值传入createGetterInvoker，返回追赋予sharedPropertyDefinition.get
   if (typeof userDef === 'function') {
     sharedPropertyDefinition.get = shouldCache
       ? createComputedGetter(key)
       : createGetterInvoker(userDef)
     sharedPropertyDefinition.set = noop
+    // 如果computed是对象，基本同上
   } else {
     sharedPropertyDefinition.get = userDef.get
       ? shouldCache && userDef.cache !== false
@@ -250,6 +280,10 @@ export function defineComputed(
       : noop
     sharedPropertyDefinition.set = userDef.set || noop
   }
+  //非生产环境下如果发现 sharedPropertyDefinition.set 的值是一个空函数
+  // 那么说明开发者并没有为计算属性定义相应的 set 拦截器函数
+  // 这时会重写 sharedPropertyDefinition.set 函数
+  // 这样当你在代码中尝试修改一个没有指定 set 拦截器函数的计算属性的值时，就会得到一个警告信息
   if (process.env.NODE_ENV !== 'production' &&
     sharedPropertyDefinition.set === noop) {
     sharedPropertyDefinition.set = function () {
@@ -262,13 +296,18 @@ export function defineComputed(
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 
+// 返回一个getter拦截器函数
 function createComputedGetter(key) {
   return function computedGetter() {
+    // 拿到watcher实例
     const watcher = this._computedWatchers && this._computedWatchers[key]
+    // 实例存在的情况下
     if (watcher) {
+      // computed情况，手动求值
       if (watcher.dirty) {
         watcher.evaluate()
       }
+      // 如果此时Dep.target存在，则是渲染函数的观察者对象。
       if (Dep.target) {
         watcher.depend()
       }

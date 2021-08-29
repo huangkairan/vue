@@ -282,6 +282,7 @@ export default class Watcher {
    * Evaluate the value of the watcher.
    * This only gets called for lazy watchers.
    */
+  // 手动求值。
   evaluate() {
     this.value = this.get()
     this.dirty = false
@@ -290,6 +291,7 @@ export default class Watcher {
   /**
    * Depend on all deps collected by this watcher.
    */
+  // 遍历调用deps中的Dep实例的depend方法，作用是调用Watcher实例的addDep方法
   depend() {
     let i = this.deps.length
     while (i--) {
