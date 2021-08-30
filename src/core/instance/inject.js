@@ -4,9 +4,13 @@ import { hasOwn } from 'shared/util'
 import { warn, hasSymbol } from '../util/index'
 import { defineReactive, toggleObserving } from '../observer/index'
 
+// 初始化provide
 export function initProvide(vm: Component) {
+  // 拿到provide
   const provide = vm.$options.provide
+  // 如果存在
   if (provide) {
+    // 是函数的话调用，否则直接赋值，添加到实例的_provided上
     vm._provided = typeof provide === 'function'
       ? provide.call(vm)
       : provide
