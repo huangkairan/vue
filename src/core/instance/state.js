@@ -53,6 +53,7 @@ export function initState(vm: Component) {
   vm._watchers = []
   // 引用
   const opts = vm.$options
+  //下面的初始化都是只有在options里配置了才会进行
   // 初始化props
   if (opts.props) initProps(vm, opts.props)
   // 初始化methods
@@ -72,23 +73,38 @@ export function initState(vm: Component) {
 }
 
 function initProps(vm: Component, propsOptions: Object) {
+  // 这里觉得很奇怪，调用initProps时明明已经检查过传了props，能进入函数体propsData肯定是有值的，这里还有必要用一个空对象防止意外吗
   const propsData = vm.$options.propsData || {}
+  // 相同的引用
   const props = vm._props = {}
   // cache prop keys so that future props updates can iterate using Array
   // instead of dynamic object key enumeration.
+  // 相同的引用，空数组，作用是缓存props的key
   const keys = vm.$options._propKeys = []
   // 通过判断vm.$parent是否存在来判断是否是根节点
   const isRoot = !vm.$parent
   // root instance props should be converted
+  // 如果不是根组件， 标记不需要观察
+  // 这里的目的是在定义 props 数据时，不将 prop 值转换为响应式数据
+  // 因为props 本身是通过 defineReactive 定义的，所以 props 本身是响应式的，但没有对值进行深度定义
+  // 因为props本身就来自父组件。这个数据如果是一个对象(包括纯对象和数组)，那
+  // 么它本身可能已经是响应式的了，所以不再需要重复定义。
+  // 另外在定义 props 数据之后，又调用 toggleObserving(true) 函数将开关开启，
+  // 这么做的目的是不影响后续代码的功能，因为这个开关是全局的
   if (!isRoot) {
     toggleObserving(false)
   }
+  // 遍历props
   for (const key in propsOptions) {
+    // 将出现过的key缓存至keys数组
     keys.push(key)
+    // 校验key给定的 prop 数据是否符合预期的类型，并返回相应 prop 的值(或默认值)
     const value = validateProp(key, propsOptions, propsData, vm)
     /* istanbul ignore else */
+    // 非生产环境
     if (process.env.NODE_ENV !== 'production') {
       const hyphenatedKey = hyphenate(key)
+      // 判断是否是保留字，警告
       if (isReservedAttribute(hyphenatedKey) ||
         config.isReservedAttr(hyphenatedKey)) {
         warn(
@@ -96,6 +112,7 @@ function initProps(vm: Component, propsOptions: Object) {
           vm
         )
       }
+      // 非生产，定义成响应式数据，加警告：避免直接修改props
       defineReactive(props, key, value, () => {
         if (!isRoot && !isUpdatingChildComponent) {
           warn(
@@ -108,15 +125,21 @@ function initProps(vm: Component, propsOptions: Object) {
         }
       })
     } else {
+      // 定义成响应式数据
       defineReactive(props, key, value)
     }
     // static props are already proxied on the component's prototype
     // during Vue.extend(). We only need to proxy props defined at
     // instantiation here.
+    // 在组件实例对象上定义与 props 同名的属性，使得我们能够通过组件实例对象直接访问 props 数据
+    // 但其最终代理的值仍然是 vm._props 对象下定义的 props 数据
+    // 这个if判断是为了避免每次创建子组件都去调用 proxy 函数去做代理
+    // 由于 proxy 函数中使用了 Object.defineProperty 函数，该函数的性能表现不佳，所以这么做能够提升一定的性能
     if (!(key in vm)) {
       proxy(vm, `_props`, key)
     }
   }
+  // 设置需要观察
   toggleObserving(true)
 }
 

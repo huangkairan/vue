@@ -316,6 +316,7 @@ export function updateChildComponent(
     }
     toggleObserving(true)
     // keep a copy of raw propsData
+    // 这里更新propsData是在校验props后的
     vm.$options.propsData = propsData
   }
 
