@@ -77,12 +77,17 @@ Vue.prototype.$mount = function (
       if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
         mark('compile')
       }
-
+      // 把模板字符串编译为渲染函数 第一个template，第二个options，第三个vm
       const { render, staticRenderFns } = compileToFunctions(template, {
         outputSourceRange: process.env.NODE_ENV !== 'production',
+        // 兼容浏览器的一些奇怪行为
         shouldDecodeNewlines,
+        // 兼容浏览器的一些奇怪行为
         shouldDecodeNewlinesForHref,
+        // 下面两个都是Vue实例的$options属性，将这两个值传过去
+        // delimiters的作用是改变纯文本插入分隔符
         delimiters: options.delimiters,
+        // commonts的作用：当设为 true 时，将会保留且渲染模板中的 HTML 注释。默认行为是舍弃它们。
         comments: options.comments
       }, this)
       // 将render函数添加到options上

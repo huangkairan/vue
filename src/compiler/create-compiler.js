@@ -4,9 +4,13 @@ import { extend } from 'shared/util'
 import { detectErrors } from './error-detector'
 import { createCompileToFunctionFn } from './to-function'
 
-export function createCompilerCreator (baseCompile: Function): Function {
-  return function createCompiler (baseOptions: CompilerOptions) {
-    function compile (
+// 传入一个函数，返回一个createCompiler函数，这个函数就是编译器的创建者
+// 可以发现 createCompiler 函数的返回值就是一个包含 compileToFunctions 属性的对象
+export function createCompilerCreator(baseCompile: Function): Function {
+  return function createCompiler(baseOptions: CompilerOptions) {
+    // 定义需要返回的compile函数
+    // 传入template和options
+    function compile(
       template: string,
       options?: CompilerOptions
     ): CompiledResult {
@@ -67,6 +71,8 @@ export function createCompilerCreator (baseCompile: Function): Function {
       return compiled
     }
 
+    // 可以发现 createCompiler 函数的返回值就是一个包含 compileToFunctions 属性的对象
+    // 返回的compileToFunctions 又将compile这个函数作为参数，调用了createCompileToFunctionFn。
     return {
       compile,
       compileToFunctions: createCompileToFunctionFn(compile)
