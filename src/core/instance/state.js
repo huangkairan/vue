@@ -346,9 +346,13 @@ function createGetterInvoker(fn) {
 }
 
 function initMethods(vm: Component, methods: Object) {
+  // 先拿到props
   const props = vm.$options.props
+  // 遍历methods里的key
   for (const key in methods) {
+    // 非生产的一些警告
     if (process.env.NODE_ENV !== 'production') {
+      //定义的methods[key]不为函数，警告
       if (typeof methods[key] !== 'function') {
         warn(
           `Method "${key}" has type "${typeof methods[key]}" in the component definition. ` +
@@ -356,12 +360,14 @@ function initMethods(vm: Component, methods: Object) {
           vm
         )
       }
+      // props有值且props存在了这个key，警告
       if (props && hasOwn(props, key)) {
         warn(
           `Method "${key}" has already been defined as a prop.`,
           vm
         )
       }
+      // 定义的key为保留字且已存在于实例，警告：比如methods里定义了一个$set，会覆盖Vue暴露的set方法
       if ((key in vm) && isReserved(key)) {
         warn(
           `Method "${key}" conflicts with an existing Vue instance method. ` +
@@ -369,6 +375,7 @@ function initMethods(vm: Component, methods: Object) {
         )
       }
     }
+    // 如果  methods[key] 不是函数，在vm实例上传个空函数，是函数则将函数添加到实例上
     vm[key] = typeof methods[key] !== 'function' ? noop : bind(methods[key], vm)
   }
 }
