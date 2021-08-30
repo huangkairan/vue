@@ -17,12 +17,18 @@ export function initProvide(vm: Component) {
   }
 }
 
+// 初始化inject
 export function initInjections(vm: Component) {
+  // 根据当前组件的 inject 选项去父代组件中寻找注入的数据，并将最终的数据返回
   const result = resolveInject(vm.$options.inject, vm)
+  // 如果有值，找到了provide的数据
   if (result) {
+    // 设置不需要观察
     toggleObserving(false)
+    // 遍历result的key，设置为响应式数据
     Object.keys(result).forEach(key => {
       /* istanbul ignore else */
+      // 非生产，尝试修改注入的数据时会警告
       if (process.env.NODE_ENV !== 'production') {
         defineReactive(vm, key, result[key], () => {
           warn(
@@ -36,11 +42,15 @@ export function initInjections(vm: Component) {
         defineReactive(vm, key, result[key])
       }
     })
+    // 设置需要观察
+    // provide 和 inject 绑定并不是可响应的。这是刻意为之的。然而，如果你传入了一个可监听的对象，那么其对象的属性还是可响应的
     toggleObserving(true)
   }
 }
 
+// 根据当前组件的 inject 选项去父代组件中寻找注入的数据，并将最终的数据返回
 export function resolveInject(inject: any, vm: Component): ?Object {
+  /// 如果传了inject
   if (inject) {
     // inject is :any because flow is not smart enough to figure out cached
     // 创建空对象保存结果
@@ -66,9 +76,11 @@ export function resolveInject(inject: any, vm: Component): ?Object {
           result[key] = source._provided[provideKey]
           break
         }
+        // 如果if条件为假，在当前组件实例上没找到_provided，则将source指向当前实例的父组件
         source = source.$parent
       }
-      // 如果result为空，则说明没有注入，去找default，还没有就警告
+      // 执行到这说明已经找完了，因为根组件的$parent = null
+      // 如果source为空，则说明没有注入，去找default，还没有就警告未注入数据
       if (!source) {
         if ('default' in inject[key]) {
           const provideDefault = inject[key].default
