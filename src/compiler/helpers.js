@@ -6,26 +6,28 @@ import { parseFilters } from './parser/filter-parser'
 type Range = { start?: number, end?: number };
 
 /* eslint-disable no-unused-vars */
-export function baseWarn (msg: string, range?: Range) {
+export function baseWarn(msg: string, range?: Range) {
   console.error(`[Vue compiler]: ${msg}`)
 }
 /* eslint-enable no-unused-vars */
 
-export function pluckModuleFunction<F: Function> (
+// 从第一个参数中取出函数名字与第二个参数所指定字符串相同的函数，并将它们组成一个数组
+export function pluckModuleFunction<F: Function>(
   modules: ?Array<Object>,
   key: string
 ): Array<F> {
   return modules
+    // map 生成新数组 filter 过滤掉undefined
     ? modules.map(m => m[key]).filter(_ => _)
     : []
 }
 
-export function addProp (el: ASTElement, name: string, value: string, range?: Range, dynamic?: boolean) {
+export function addProp(el: ASTElement, name: string, value: string, range?: Range, dynamic?: boolean) {
   (el.props || (el.props = [])).push(rangeSetItem({ name, value, dynamic }, range))
   el.plain = false
 }
 
-export function addAttr (el: ASTElement, name: string, value: any, range?: Range, dynamic?: boolean) {
+export function addAttr(el: ASTElement, name: string, value: any, range?: Range, dynamic?: boolean) {
   const attrs = dynamic
     ? (el.dynamicAttrs || (el.dynamicAttrs = []))
     : (el.attrs || (el.attrs = []))
@@ -34,12 +36,12 @@ export function addAttr (el: ASTElement, name: string, value: any, range?: Range
 }
 
 // add a raw attr (use this in preTransforms)
-export function addRawAttr (el: ASTElement, name: string, value: any, range?: Range) {
+export function addRawAttr(el: ASTElement, name: string, value: any, range?: Range) {
   el.attrsMap[name] = value
   el.attrsList.push(rangeSetItem({ name, value }, range))
 }
 
-export function addDirective (
+export function addDirective(
   el: ASTElement,
   name: string,
   rawName: string,
@@ -60,13 +62,13 @@ export function addDirective (
   el.plain = false
 }
 
-function prependModifierMarker (symbol: string, name: string, dynamic?: boolean): string {
+function prependModifierMarker(symbol: string, name: string, dynamic?: boolean): string {
   return dynamic
     ? `_p(${name},"${symbol}")`
     : symbol + name // mark the event as captured
 }
 
-export function addHandler (
+export function addHandler(
   el: ASTElement,
   name: string,
   value: string,
@@ -149,7 +151,7 @@ export function addHandler (
   el.plain = false
 }
 
-export function getRawBindingAttr (
+export function getRawBindingAttr(
   el: ASTElement,
   name: string
 ) {
@@ -158,7 +160,7 @@ export function getRawBindingAttr (
     el.rawAttrsMap[name]
 }
 
-export function getBindingAttr (
+export function getBindingAttr(
   el: ASTElement,
   name: string,
   getStatic?: boolean
@@ -180,7 +182,7 @@ export function getBindingAttr (
 // doesn't get processed by processAttrs.
 // By default it does NOT remove it from the map (attrsMap) because the map is
 // needed during codegen.
-export function getAndRemoveAttr (
+export function getAndRemoveAttr(
   el: ASTElement,
   name: string,
   removeFromMap?: boolean
@@ -201,7 +203,7 @@ export function getAndRemoveAttr (
   return val
 }
 
-export function getAndRemoveAttrByRegex (
+export function getAndRemoveAttrByRegex(
   el: ASTElement,
   name: RegExp
 ) {
@@ -215,7 +217,7 @@ export function getAndRemoveAttrByRegex (
   }
 }
 
-function rangeSetItem (
+function rangeSetItem(
   item: any,
   range?: { start?: number, end?: number }
 ) {
