@@ -312,19 +312,25 @@ export function parse(
 
       // 对当前元素描述对象做额外的处理，使得该元素描述对象能更好的描述一个标签。简单点说就是在元素描述对象上添加各种各样的具有标识作用的属性
       if (!inVPre) {
+        // 除了获取给定属性的值之外，还会将该属性从 attrsList 数组中移除，并可以选择性地将该属性从 attrsMap 对象中移除
+        // 这时会将 inVPre 变量的值也设置为 true。当 inVPre 变量为真时，意味着 后续的所有解析工作都处于 v-pre 环境下，编译器会跳过拥有 v-pre 指令元素以及其子元素的编译过程，所以后续的编译逻辑需要 inVPre 变量作为标识才行
         processPre(element)
         if (element.pre) {
           inVPre = true
         }
       }
+      //platformIsPreTag 函数判断当前元素是否是 <pre> 标签
       if (platformIsPreTag(element.tag)) {
         inPre = true
       }
       if (inVPre) {
+        //将该元素所有属性全部作为原生的属性(attr)处理
         processRawAttrs(element)
       } else if (!element.processed) {
         // structural directives
+        // 处理v-for
         processFor(element)
+        //处理v-if
         processIf(element)
         processOnce(element)
       }
@@ -448,8 +454,8 @@ export function parse(
   })
   return root
 }
-
 function processPre(el) {
+  // 获获取给定元素 v-pre 属性的值，如果 v-pre 属性的值不等于 null 则会在元素描述对象上添加 .pre 属性，并将其值设置为 true
   if (getAndRemoveAttr(el, 'v-pre') != null) {
     el.pre = true
   }
@@ -541,6 +547,7 @@ export function processFor(el: ASTElement) {
   if ((exp = getAndRemoveAttr(el, 'v-for'))) {
     const res = parseFor(exp)
     if (res) {
+      //如果 parseFor 函数对 v-for 指令的值解析成功，则会将解析结果保存在 res 常量中，并使用 extend 函数将 res 常量中的属性混入当前元素的描述对象中
       extend(el, res)
     } else if (process.env.NODE_ENV !== 'production') {
       warn(
@@ -558,6 +565,24 @@ type ForParseResult = {
   iterator2?: string;
 };
 
+// 1、如果 v-for 指令的值为字符串 'obj in list'，则 parseFor 函数的返回值为：
+// {
+//   for: 'list',
+//   alias: 'obj'
+// }
+// 2、如果 v-for 指令的值为字符串 '(obj, index) in list'，则 parseFor 函数的返回值为：
+// {
+//   for: 'list',
+//   alias: 'obj',
+//   iterator1: 'index'
+// }
+// 3、如果 v-for 指令的值为字符串 '(obj, key, index) in list'，则 parseFor 函数的返回值为：
+// {
+//   for: 'list',
+//   alias: 'obj',
+//   iterator1: 'key',
+//   iterator2: 'index'
+// }
 export function parseFor(exp: string): ?ForParseResult {
   const inMatch = exp.match(forAliasRE)
   if (!inMatch) return
