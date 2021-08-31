@@ -168,8 +168,10 @@ export function parseHTML(html, options) {
       }
 
       let text, rest, next
+      // 处理那些第一个字符是 < 但没有成功匹配标签，或第一个字符不是 < 的字符串。
       if (textEnd >= 0) {
         rest = html.slice(textEnd)
+        // 保证只有截取后的字符串不能匹配标签的情况下才会执行，说明<存在于普通文本中
         while (
           !endTag.test(rest) &&
           !startTagOpen.test(rest) &&
@@ -177,6 +179,7 @@ export function parseHTML(html, options) {
           !conditionalComment.test(rest)
         ) {
           // < in plain text, be forgiving and treat it as text
+          // 直到遇到一个能够成功匹配标签的 < 符号为止，或者当再也遇不到下一个 < 符号时，while 循环会 break
           next = rest.indexOf('<', 1)
           if (next < 0) break
           textEnd += next
@@ -184,7 +187,7 @@ export function parseHTML(html, options) {
         }
         text = html.substring(0, textEnd)
       }
-
+      // 将整个 html 字符串作为文本处理
       if (textEnd < 0) {
         text = html
       }
@@ -192,7 +195,7 @@ export function parseHTML(html, options) {
       if (text) {
         advance(text.length)
       }
-
+      // 如果 options.chars 存在，则会调用该钩子函数并将字符串传递过去。
       if (options.chars && text) {
         options.chars(text, index - text.length, index)
       }
@@ -227,7 +230,9 @@ export function parseHTML(html, options) {
 
     // 如果两者相等，则说明字符串 html 在经历循环体的代码之后没有任何改变，此时会把 html 字符串作为纯文本对待
     if (html === last) {
+      //如果 options.chars 存在，则会调用该钩子函数并将字符串传递过去。
       options.chars && options.chars(html)
+      // 处理完了栈内还非空，标识不符合标签格式时
       if (process.env.NODE_ENV !== 'production' && !stack.length && options.warn) {
         options.warn(`Mal-formatted tag at end of template: "${html}"`, { start: index + html.length })
       }
