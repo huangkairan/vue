@@ -602,19 +602,29 @@ export function parseFor(exp: string): ?ForParseResult {
   return res
 }
 
+//  1、如果标签使用了 v-if 指令，则该标签的元素描述对象的 el.if 属性存储着 v-if 指令的属性值
+//  2、如果标签使用了 v-else 指令，则该标签的元素描述对象的 el.else 属性值为 true
+//  3、如果标签使用了 v-else-if 指令，则该标签的元素描述对象的 el.elseif 属性存储着 v-else-if 指令的属性值
+//  4、如果标签使用了 v-if 指令，则该标签的元素描述对象的 ifConditions 数组中包含“自己”
+//  5、如果标签使用了 v-else 或 v-else-if 指令，则该标签的元素描述对象会被添加到与之相符的带有 v-if 指令的元素描述对象的 ifConditions 数组中。
 function processIf(el) {
   const exp = getAndRemoveAttr(el, 'v-if')
   // 当一个元素使用了 v-else-if 或 v-else 指令时，它们是不会作为父级元素子节点的
+  // 只要v-if的值没传，就当作没这个属性。不然这个元素永远都被不会渲染
+  // 如果获取到了v-if,把自身作为一个 条件对象 添加到自身元素描述对象的 ifConditions 数组中
   if (exp) {
     el.if = exp
     addIfCondition(el, {
       exp: exp,
       block: el
     })
+    // 如果没有获取到v-if，则尝试获取v-else
+    // 如果获取到了，为该元素添加else 属性
   } else {
     if (getAndRemoveAttr(el, 'v-else') != null) {
       el.else = true
     }
+    // 获取v-else-if，添加elseif属性
     const elseif = getAndRemoveAttr(el, 'v-else-if')
     if (elseif) {
       el.elseif = elseif
