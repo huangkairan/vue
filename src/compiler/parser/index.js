@@ -332,6 +332,7 @@ export function parse(
         processFor(element)
         //处理v-if
         processIf(element)
+        // 处理v-once
         processOnce(element)
       }
       // 如果root为空，则是根节点，直接赋值
@@ -675,6 +676,7 @@ export function addIfCondition(el: ASTElement, condition: ASTIfCondition) {
 }
 
 function processOnce(el) {
+  // 获取v-once，如果有，添加once属性
   const once = getAndRemoveAttr(el, 'v-once')
   if (once != null) {
     el.once = true
