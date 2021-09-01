@@ -343,6 +343,7 @@ export function parse(
         }
       }
 
+      // 
       if (!unary) {
         currentParent = element
         stack.push(element)
@@ -483,23 +484,29 @@ function processRawAttrs(el) {
   }
 }
 
+//其他一系列 process* 函数的集合
 export function processElement(
   element: ASTElement,
   options: CompilerOptions
 ) {
+  // 处理key
   processKey(element)
 
   // determine whether this is a plain element after
   // removing structural attributes
+  // 只有当标签没有使用 key 属性，没用使用slot属性，并且标签只使用了结构化指令的情况下才被认为是“纯”的
   element.plain = (
     !element.key &&
     !element.scopedSlots &&
     !element.attrsList.length
   )
 
+  // 处理ref
   processRef(element)
+  // 处理插槽
   processSlotContent(element)
   processSlotOutlet(element)
+  // 处理is和inline-template
   processComponent(element)
   for (let i = 0; i < transforms.length; i++) {
     element = transforms[i](element, options) || element
@@ -508,8 +515,15 @@ export function processElement(
   return element
 }
 
+//  1、key 属性不能被应用到 <template> 标签。
+//  2、使用了 key 属性的标签，其元素描述对象的 el.key 属性保存着 key 属性的值。
+//  3、不要使用v-for的index作key。在transition-group内
 function processKey(el) {
+  // 从el中获取绑定的key属性
   const exp = getBindingAttr(el, 'key')
+  // 如果存在，设置元素的key属性。
+  // 此外，通过警告可以得知，1. template元素不能设置key，因为template会被转换
+  // 2. 不要使用v-for的index作key。在transition-group内
   if (exp) {
     if (process.env.NODE_ENV !== 'production') {
       if (el.tag === 'template') {
@@ -535,10 +549,15 @@ function processKey(el) {
   }
 }
 
+//如果一个标签使用了 ref 属性，则：
+//1、该标签的元素描述对象会被添加 el.ref 属性，该属性为解析后生成的表达式字符串，与 el.key 类似。
+//2、该标签的元素描述对象会被添加 el.refInFor 属性，它是一个布尔值，用来标识当前元素的 ref 属性是否在 v-for 指令之内使用。
 function processRef(el) {
+  // 获取绑定元素ref，如果存在则在属性上赋值
   const ref = getBindingAttr(el, 'ref')
   if (ref) {
     el.ref = ref
+    // 如果在v-for指令包围内，则添加refInFor属性 = true 否则false
     el.refInFor = checkInFor(el)
   }
 }
@@ -685,11 +704,17 @@ function processOnce(el) {
 
 // handle content being passed to a component as slot,
 // e.g. <template slot="xxx">, <div slot-scope="xxx">
+//1、对于 <slot> 标签，会为其元素描述对象添加 el.slotName 属性，属性值为该标签 name 属性的值，并且 name 属性可以是绑定的。
+//2、对于 <template> 标签，会优先获取并使用该标签 scope 属性的值，如果获取不到则会获取 slot-scope 属性的值，并将获取到的值赋值给元素描述对象的 el.slotScope 属性，注意 scope 属性和 slot-scope 属性不能是绑定的。
+//3、对于其他标签，会尝试获取 slot-scope 属性的值，并将获取到的值赋值给元素描述对象的 el.slotScope 属性。
+//4、对于非 <slot> 标签，会尝试获取该标签的 slot 属性，并将获取到的值赋值给元素描述对象的 el.slotTarget 属性。如果一个标签使用了 slot 属性但却没有给定相应的值，则该标签元素描述对象的 el.slotTarget 属性值为字符串 '"default"'。
 function processSlotContent(el) {
   let slotScope
+  // 如果是template，则会给template的slotScope属性赋值，值为scope或slot-scope的值
   if (el.tag === 'template') {
     slotScope = getAndRemoveAttr(el, 'scope')
     /* istanbul ignore if */
+    //由警告可知，v2.5以后 scope属性被移除，要是用slot-scope属性。因为后者不受限于template标签
     if (process.env.NODE_ENV !== 'production' && slotScope) {
       warn(
         `the "scope" attribute for scoped slots have been deprecated and ` +
@@ -700,9 +725,12 @@ function processSlotContent(el) {
         true
       )
     }
+    // 并且scope和slot-scope属性不能是绑定属性
     el.slotScope = slotScope || getAndRemoveAttr(el, 'slot-scope')
   } else if ((slotScope = getAndRemoveAttr(el, 'slot-scope'))) {
     /* istanbul ignore if */
+    // 警告得知，当slot-scope和V-for一起使用时，v-for的作用域会是父级的，因为v-for优先级更高。
+    // 建议在外层使用template + slotscope
     if (process.env.NODE_ENV !== 'production' && el.attrsMap['v-for']) {
       warn(
         `Ambiguous combined usage of slot-scope and v-for on <${el.tag}> ` +
@@ -712,10 +740,12 @@ function processSlotContent(el) {
         true
       )
     }
+    // 使用了slotScope，则添加属性
     el.slotScope = slotScope
   }
 
   // slot="xxx"
+  // 处理标签的slot内容
   const slotTarget = getBindingAttr(el, 'slot')
   if (slotTarget) {
     el.slotTarget = slotTarget === '""' ? '"default"' : slotTarget
@@ -821,8 +851,10 @@ function getSlotName(binding) {
 
 // handle <slot/> outlets
 function processSlotOutlet(el) {
+  // 如果元素的标签是slot，则获取slot的name
   if (el.tag === 'slot') {
     el.slotName = getBindingAttr(el, 'name')
+    //由警告可只，插槽不能给key属性，因为slot和template一样，都是抽象组件，要么不渲染真实DOM，要么会被别的DOM替代
     if (process.env.NODE_ENV !== 'production' && el.key) {
       warn(
         `\`key\` does not work on <slot> because slots are abstract outlets ` +
@@ -981,6 +1013,7 @@ function processAttrs(el) {
   }
 }
 
+// 判断是否在v-for指令包围内
 function checkInFor(el: ASTElement): boolean {
   let parent = el
   while (parent) {

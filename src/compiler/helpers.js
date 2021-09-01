@@ -160,6 +160,8 @@ export function getRawBindingAttr(
     el.rawAttrsMap[name]
 }
 
+
+// 获取绑定的属性值
 export function getBindingAttr(
   el: ASTElement,
   name: string,
@@ -169,10 +171,12 @@ export function getBindingAttr(
     getAndRemoveAttr(el, ':' + name) ||
     getAndRemoveAttr(el, 'v-bind:' + name)
   if (dynamicValue != null) {
+    // 绑定的属性值可以居然可以使用filter，但为什么不直接用computed呢
     return parseFilters(dynamicValue)
   } else if (getStatic !== false) {
     const staticValue = getAndRemoveAttr(el, name)
     if (staticValue != null) {
+      // 不被绑定的值会被处理成字符串
       return JSON.stringify(staticValue)
     }
   }

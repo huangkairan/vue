@@ -2,15 +2,27 @@
 
 const validDivisionCharRE = /[\w).+\-_$\]]/
 
-export function parseFilters (exp: string): string {
+//标签的属性 key 是非绑定属性，所以会将它的值作为普通字符串处理
+//标签的属性 key 是绑定属性，所以会将它的值作为表达式处理，而非普通字符串
+//标签的属性 key 是绑定属性，并且应用了过滤器，所以会将它的值与过滤器整合在一起产生一个新的表达式
+export function parseFilters(exp: string): string {
+  //inSingle 变量的作用是用来标识当前读取的字符是否在由单引号包裹的字符串中。同样的：
+  //inDouble 变量是用来标识当前读取的字符是否在由 双引号 包裹的字符串中。
+  //inTemplateString 变量是用来标识当前读取的字符是否在 模板字符串 中。
+  //inRegex 变量是用来标识当前读取的字符是否在 正则表达式 中。
   let inSingle = false
   let inDouble = false
   let inTemplateString = false
   let inRegex = false
+  //在解析绑定的属性值时，每遇到一个左花括号({)，则 curly 变量的值就会加一，每遇到一个右花括号(})，则 curly 变量的值就会减一。
+  //在解析绑定的属性值时，每遇到一个左方括号([)，则 square 变量的值就会加一，每遇到一个右方括号(])，则 square 变量的值就会减一。
+  //在解析绑定的属性值时，每遇到一个左圆括号(()，则 paren 变量的值就会加一，每遇到一个右圆括号())，则 paren 变量的值就会减一。
   let curly = 0
   let square = 0
   let paren = 0
+  //字符串中字符的索引
   let lastFilterIndex = 0
+  //c 就是当前读入字符所对应的 ASCII 码。变量 prev 保存的则是当前字符的前一个字符所对应的 ASCII 码。变量 i 为当前读入字符的位置索引。变量 expression 将是 parseFilters 函数的返回值。变量 filters 将来会是一个数组，它保存着所有过滤器函数名。
   let c, prev, i, expression, filters
 
   for (i = 0; i < exp.length; i++) {
@@ -70,7 +82,7 @@ export function parseFilters (exp: string): string {
     pushFilter()
   }
 
-  function pushFilter () {
+  function pushFilter() {
     (filters || (filters = [])).push(exp.slice(lastFilterIndex, i).trim())
     lastFilterIndex = i + 1
   }
@@ -84,7 +96,7 @@ export function parseFilters (exp: string): string {
   return expression
 }
 
-function wrapFilter (exp: string, filter: string): string {
+function wrapFilter(exp: string, filter: string): string {
   const i = filter.indexOf('(')
   if (i < 0) {
     // _f: resolveFilter
