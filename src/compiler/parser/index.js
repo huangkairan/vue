@@ -511,6 +511,8 @@ export function processElement(
   for (let i = 0; i < transforms.length; i++) {
     element = transforms[i](element, options) || element
   }
+  // 走到这时，上面处理过的属性如v-if for, slot...等等都已经从attrList中移除了。
+  // 但可能元素上还存在其他的属性，这时处理
   processAttrs(element)
   return element
 }
@@ -878,29 +880,43 @@ function processComponent(el) {
 
 function processAttrs(el) {
   const list = el.attrsList
+  // 属性名，属性值，
   let i, l, name, rawName, value, modifiers, syncGen, isDynamic
+  // 依旧是一样的思路，遍历取值解析
   for (i = 0, l = list.length; i < l; i++) {
     name = rawName = list[i].name
     value = list[i].value
+    // 判断是不是指令
     if (dirRE.test(name)) {
       // mark element as dynamic
+      // 标记是动态
       el.hasBindings = true
-      // modifiers
+      // 保存将指令删除后的 （如v-..@..:..）的name
+      // modifiers 匹配修饰符，解析，处理完后是个对象{sync:true}或undefined
       modifiers = parseModifiers(name.replace(dirRE, ''))
       // support .foo shorthand syntax for the .prop modifier
+      // 匹配以.开头的语法（没懂干啥的）
       if (process.env.VBIND_PROP_SHORTHAND && propBindRE.test(name)) {
         (modifiers || (modifiers = {})).prop = true
         name = `.` + name.slice(1).replace(modifierRE, '')
       } else if (modifiers) {
         name = name.replace(modifierRE, '')
       }
+      // 匹配v-bind，处理
+      //1、任何绑定的属性，最终要么会被添加到元素描述对象的 el.attrs 数组中，要么就被添加到元素描述对象的 el.props 数组中。
+      //2、对于使用了 .sync 修饰符的绑定属性，还会在元素描述对象的 el.events 对象中添加名字为 'update:${驼峰化的属性名}' 的事件。
       if (bindRE.test(name)) { // v-bind
+        // 将name中的指令删除
         name = name.replace(bindRE, '')
+        // 用filter处理value
         value = parseFilters(value)
+        // 判断是否是动态
         isDynamic = dynamicArgRE.test(name)
+        // 动态则把.或*删除
         if (isDynamic) {
           name = name.slice(1, -1)
         }
+        // 非生产的判空警告
         if (
           process.env.NODE_ENV !== 'production' &&
           value.trim().length === 0
@@ -909,15 +925,23 @@ function processAttrs(el) {
             `The value for a v-bind expression cannot be empty. Found in "v-bind:${name}"`
           )
         }
+        // 如果有值（是个对象）说明有修饰符，则处理
         if (modifiers) {
+          // 如果有prop属性，说明是dom属性
           if (modifiers.prop && !isDynamic) {
             name = camelize(name)
+            // innerHTML特殊处理
             if (name === 'innerHtml') name = 'innerHTML'
           }
+          // 驼峰处理
           if (modifiers.camel && !isDynamic) {
             name = camelize(name)
           }
+          // 处理sync修饰符语法糖
           if (modifiers.sync) {
+            // :some-prop.sync <==等价于==> :some-prop + @update:someProp
+
+            // 事件发生的回调
             syncGen = genAssignmentCode(value, `$event`)
             if (!isDynamic) {
               addHandler(
@@ -955,26 +979,38 @@ function processAttrs(el) {
             }
           }
         }
+        // 如果是原生的prop，添加
         if ((modifiers && modifiers.prop) || (
           !el.component && platformMustUseProp(el.tag, el.attrsMap.type, name)
         )) {
+          // 处理的是原生DOM的prop。el.prop保存的是原生DOM的数组。
           addProp(el, name, value, list[i], isDynamic)
         } else {
+          // 添加到el.attrs数组中
           addAttr(el, name, value, list[i], isDynamic)
         }
+
+        // 处理v-on
       } else if (onRE.test(name)) { // v-on
+        // 首先将@或v-on删除
         name = name.replace(onRE, '')
+        // 然后判断是否是动态属性
         isDynamic = dynamicArgRE.test(name)
+        // 如果是，将.删除
         if (isDynamic) {
           name = name.slice(1, -1)
         }
         addHandler(el, name, value, modifiers, false, warn, list[i], isDynamic)
+        // 处理其他属性
       } else { // normal directives
+        // 首先去除掉v-..：..@.. 重新赋值name，为属性名
         name = name.replace(dirRE, '')
         // parse arg
+        //使用 argRE 正则匹配变量 name，并将匹配结果保存在 argMatch 常量中
         const argMatch = name.match(argRE)
         let arg = argMatch && argMatch[1]
         isDynamic = false
+        // 如果arg存在 将参数字符串从 name 字符串中移除掉
         if (arg) {
           name = name.slice(0, -(arg.length + 1))
           if (dynamicArgRE.test(arg)) {
@@ -982,14 +1018,19 @@ function processAttrs(el) {
             isDynamic = true
           }
         }
+        // 添加指令到el.directives
         addDirective(el, name, rawName, value, arg, isDynamic, modifiers, list[i])
+        //如果指令的名字为 model，则会调用 checkForAliasModel 函数，并将元素描述对象和 v-model 属性值作为参数传递
         if (process.env.NODE_ENV !== 'production' && name === 'model') {
           checkForAliasModel(el, value)
         }
       }
+      // 处理非指令
     } else {
       // literal attribute
       if (process.env.NODE_ENV !== 'production') {
+
+        // 非指令还使用动态的字面量表达式，警告，建议变成动态属性
         const res = parseText(value, delimiters)
         if (res) {
           warn(
@@ -1001,9 +1042,11 @@ function processAttrs(el) {
           )
         }
       }
+      // 将value处理成字符串，加入el.attrs数组中
       addAttr(el, name, JSON.stringify(value), list[i])
       // #6887 firefox doesn't update muted state if set via attribute
       // even immediately after element creation
+      // 修复火狐数据不响应的问题
       if (!el.component &&
         name === 'muted' &&
         platformMustUseProp(el.tag, el.attrsMap.type, name)) {
@@ -1027,6 +1070,7 @@ function checkInFor(el: ASTElement): boolean {
 
 function parseModifiers(name: string): Object | void {
   const match = name.match(modifierRE)
+  // 处理，如：.sync 处理后会变成{sync: true}，.stop处理后会变成{stop: true}
   if (match) {
     const ret = {}
     match.forEach(m => { ret[m.slice(1)] = true })
@@ -1081,6 +1125,12 @@ function guardIESVGBug(attrs) {
   return res
 }
 
+// 从使用了 v-model 指令的标签开始，逐层向上遍历父级标签的元素描述对象，直到根元素为止。
+// 并且在遍历的过程中一旦发现这些标签的元素描述对象中存在满足条件：_el.for && _el.alias === value 的情况
+// 就会打印警告信息
+
+// 如 在v-for中 直接v-model绑定每个item，此时v-model的行为失效。
+// 如果想要这种实现，可以v-model 绑定每个对象中元素 v-for="obj in arr" v-model="obj.name"
 function checkForAliasModel(el, value) {
   let _el = el
   while (_el) {
