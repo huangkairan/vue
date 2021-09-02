@@ -7,7 +7,8 @@ import {
   baseWarn
 } from 'compiler/helpers'
 
-function transformNode (el: ASTElement, options: CompilerOptions) {
+
+function transformNode(el: ASTElement, options: CompilerOptions) {
   const warn = options.warn || baseWarn
   const staticClass = getAndRemoveAttr(el, 'class')
   if (process.env.NODE_ENV !== 'production' && staticClass) {
@@ -31,7 +32,7 @@ function transformNode (el: ASTElement, options: CompilerOptions) {
   }
 }
 
-function genData (el: ASTElement): string {
+function genData(el: ASTElement): string {
   let data = ''
   if (el.staticClass) {
     data += `staticClass:${el.staticClass},`

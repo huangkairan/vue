@@ -306,6 +306,8 @@ export function parse(
       // apply pre-transforms，每个元素都是函数
       // 遍历 preTransforms 数组。调用每个函数，并将元素和option传入
       // 这些函数的作用与我们之前见到过的 process* 系列的函数没什么区别，都是用来对当前元素描述对象做进一步处理
+      // 处理class，style和model
+      // 如果通过预处理函数处理之后得到了新的元素描述对象，则使用新的元素描述对象替换当前元素描述对象(element)，否则依然使用 element 作为元素描述对象
       for (let i = 0; i < preTransforms.length; i++) {
         element = preTransforms[i](element, options) || element
       }
