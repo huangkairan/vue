@@ -25,6 +25,7 @@ export class CodegenState {
     this.options = options
     this.warn = options.warn || baseWarn
     this.transforms = pluckModuleFunction(options.modules, 'transformCode')
+    // 获取所有 modules 中的 genData 函数，其中，class module 和 style module 定义了 genData 函数
     this.dataGenFns = pluckModuleFunction(options.modules, 'genData')
     this.directives = extend(extend({}, baseDirectives), options.directives)
     const isReservedTag = options.isReservedTag || no
@@ -40,6 +41,7 @@ export type CodegenResult = {
   staticRenderFns: Array<string>
 };
 
+// generate的作用是，将ast转唯code字符串，这个字符串会在compileToFunctions将字符串转换成函数，并赋值给vm.render
 export function generate(
   ast: ASTElement | void,
   options: CompilerOptions
@@ -47,6 +49,7 @@ export function generate(
   // options传入，生成CodegenState实例
   const state = new CodegenState(options)
   // fix #11483, Root level <script> tags should not be rendered.
+  // 如果根不为script，先将ast生成code
   const code = ast ? (ast.tag === 'script' ? 'null' : genElement(ast, state)) : '_c("div")'
   return {
     render: `with(this){return ${code}}`,
@@ -54,21 +57,29 @@ export function generate(
   }
 }
 
+// 判断当前 AST 元素节点的属性执行不同的代码生成函数
+// 虽然元素节点属性的情况有很多种，但是最后真正创建出来的VNode无非就三种，分别是元素节点，文本节点，注释节点
 export function genElement(el: ASTElement, state: CodegenState): string {
   if (el.parent) {
     el.pre = el.pre || el.parent.pre
   }
 
+  // 静态根节点
   if (el.staticRoot && !el.staticProcessed) {
     return genStatic(el, state)
+    // v-once
   } else if (el.once && !el.onceProcessed) {
     return genOnce(el, state)
+    //v-for
   } else if (el.for && !el.forProcessed) {
     return genFor(el, state)
+    //v-if
   } else if (el.if && !el.ifProcessed) {
     return genIf(el, state)
+    // template
   } else if (el.tag === 'template' && !el.slotTarget && !state.pre) {
     return genChildren(el, state) || 'void 0'
+    //slot
   } else if (el.tag === 'slot') {
     return genSlot(el, state)
   } else {
@@ -78,11 +89,14 @@ export function genElement(el: ASTElement, state: CodegenState): string {
       code = genComponent(el.component, el, state)
     } else {
       let data
+      // 元素节点
+      // 判断plain属性是否为true，若为true则表示节点没有属性，将data赋值为undefined；如果不为true则调用genData函数获取节点属性data数据
       if (!el.plain || (el.pre && state.maybeComponent(el))) {
         data = genData(el, state)
       }
-
+      // 主要不是inline的template，遍历children的元素生成对应字符串
       const children = el.inlineTemplate ? null : genChildren(el, state, true)
+      // 然后根据执行genData和genChildren后的结果生成_c字符串（createElement）
       code = `_c('${el.tag}'${data ? `,${data}` : '' // data
         }${children ? `,${children}` : '' // children
         })`
@@ -107,6 +121,7 @@ function genStatic(el: ASTElement, state: CodegenState): string {
   }
   state.staticRenderFns.push(`with(this){return ${genElement(el, state)}}`)
   state.pre = originalPreState
+  // renderStatic字符串
   return `_m(${state.staticRenderFns.length - 1
     }${el.staticInFor ? ',true' : ''
     })`
@@ -117,16 +132,20 @@ function genOnce(el: ASTElement, state: CodegenState): string {
   el.onceProcessed = true
   if (el.if && !el.ifProcessed) {
     return genIf(el, state)
+    // 如果在v-for，
   } else if (el.staticInFor) {
     let key = ''
     let parent = el.parent
+    // 向上找，拿到parent的key
     while (parent) {
       if (parent.for) {
         key = parent.key
         break
       }
+      // 相当于找到了v-for那级
       parent = parent.parent
     }
+    // v-once只能在使用了key的v-for中使用
     if (!key) {
       process.env.NODE_ENV !== 'production' && state.warn(
         `v-once can only be used inside v-for that is keyed. `,
@@ -134,12 +153,17 @@ function genOnce(el: ASTElement, state: CodegenState): string {
       )
       return genElement(el, state)
     }
+    // markOnce字符串包裹了genElement。由于在v-for，所以要对子内容gen
     return `_o(${genElement(el, state)},${state.onceId++},${key})`
   } else {
+    // 否则直接构造静态
     return genStatic(el, state)
   }
 }
 
+// 通过执行 genIfConditions，它是依次从 conditions 获取第一个 condition，
+// 然后通过对 condition.exp 去生成一段三元运算符的代码，: 后是递归调用 genIfConditions，
+// 这样如果有多个 conditions，就生成多层三元运算逻辑
 export function genIf(
   el: any,
   state: CodegenState,
@@ -179,6 +203,7 @@ function genIfConditions(
   }
 }
 
+// 其实也没做啥，就是从AST中拿了一些属性，拼成了一个字符串
 export function genFor(
   el: any,
   state: CodegenState,
@@ -190,6 +215,7 @@ export function genFor(
   const iterator1 = el.iterator1 ? `,${el.iterator1}` : ''
   const iterator2 = el.iterator2 ? `,${el.iterator2}` : ''
 
+  // 警告使用v-for却没key的情况
   if (process.env.NODE_ENV !== 'production' &&
     state.maybeComponent(el) &&
     el.tag !== 'slot' &&
@@ -212,6 +238,7 @@ export function genFor(
     '})'
 }
 
+// genData 函数就是根据 AST 元素节点的属性构造出一个 data 对象字符串，这个在后面创建 VNode 的时候的时候会作为参数传入。
 export function genData(el: ASTElement, state: CodegenState): string {
   let data = '{'
 
@@ -446,6 +473,7 @@ function genScopedSlot(
   return `{key:${el.slotTarget || `"default"`},fn:${fn}${reverseProxy}}`
 }
 
+// 获取子节点列表children其实就是遍历AST的children属性中的元素，然后根据元素属性的不同生成不同的VNode创建函数调用字符串
 export function genChildren(
   el: ASTElement,
   state: CodegenState,
@@ -517,6 +545,7 @@ function genNode(node: ASTNode, state: CodegenState): string {
   }
 }
 
+// 文本节点直接用createVNode创建，所以这里直接生成一个_v字符串
 export function genText(text: ASTText | ASTExpression): string {
   return `_v(${text.type === 2
     ? text.expression // no need for () because already wrapped in _s()
@@ -524,6 +553,7 @@ export function genText(text: ASTText | ASTExpression): string {
     })`
 }
 
+// 注释，不用生成任何节点，生成一个createEmpty（_e）字符串就行
 export function genComment(comment: ASTText): string {
   return `_e(${JSON.stringify(comment.text)})`
 }
@@ -531,7 +561,9 @@ export function genComment(comment: ASTText): string {
 function genSlot(el: ASTElement, state: CodegenState): string {
   const slotName = el.slotName || '"default"'
   const children = genChildren(el, state)
+  // renderSlot字符串
   let res = `_t(${slotName}${children ? `,function(){return ${children}}` : ''}`
+  // 处理参数，拼接到res字符串后
   const attrs = el.attrs || el.dynamicAttrs
     ? genProps((el.attrs || []).concat(el.dynamicAttrs || []).map(attr => ({
       // slot props are camelized
@@ -554,12 +586,15 @@ function genSlot(el: ASTElement, state: CodegenState): string {
 }
 
 // componentName is el.component, take it as argument to shun flow's pessimistic refinement
+// 这里的componentName就是component
 function genComponent(
   componentName: string,
   el: ASTElement,
   state: CodegenState
 ): string {
   const children = el.inlineTemplate ? null : genChildren(el, state, true)
+  // 有children的话获取genChildren返回的字符串。
+  // 拼接成createElement字符串
   return `_c(${componentName},${genData(el, state)}${children ? `,${children}` : ''
     })`
 }
@@ -591,6 +626,7 @@ function generateValue(value) {
   if (typeof value === 'string') {
     return transformSpecialNewlines(value)
   }
+  // 将value转成字符
   return JSON.stringify(value)
 }
 
