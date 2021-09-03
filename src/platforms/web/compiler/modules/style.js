@@ -8,10 +8,14 @@ import {
   baseWarn
 } from 'compiler/helpers'
 
-function transformNode (el: ASTElement, options: CompilerOptions) {
+// 处理style
+function transformNode(el: ASTElement, options: CompilerOptions) {
+  // 用来打印警告信息
   const warn = options.warn || baseWarn
+  // 获取非绑定的 style的属性值并删除
   const staticStyle = getAndRemoveAttr(el, 'style')
   if (staticStyle) {
+    // 非绑定的style中使用了字面量表达式  警告
     /* istanbul ignore if */
     if (process.env.NODE_ENV !== 'production') {
       const res = parseText(staticStyle, options.delimiters)
@@ -25,16 +29,17 @@ function transformNode (el: ASTElement, options: CompilerOptions) {
         )
       }
     }
+    // 会把style转为对象
     el.staticStyle = JSON.stringify(parseStyleText(staticStyle))
   }
-
+  // 解析绑定的style
   const styleBinding = getBindingAttr(el, 'style', false /* getStatic */)
   if (styleBinding) {
     el.styleBinding = styleBinding
   }
 }
 
-function genData (el: ASTElement): string {
+function genData(el: ASTElement): string {
   let data = ''
   if (el.staticStyle) {
     data += `staticStyle:${el.staticStyle},`
