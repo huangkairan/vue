@@ -359,7 +359,7 @@ export function parse(
       }
     },
 
-    //end 钩子函数，在解析 html 字符串时每次遇到 结束标签 时就会调用该函数
+    //1
     end(tag, start, end) {
       // 拿到栈最后的元素
       const element = stack[stack.length - 1]
@@ -370,7 +370,7 @@ export function parse(
       if (process.env.NODE_ENV !== 'production' && options.outputSourceRange) {
         element.end = end
       }
-      //1.对数据状态的还原，我们知道每当遇到 <pre> 标签的开始标签时，解析器会将 inPre 变量设置为 true
+      // 1.对数据状态的还原，我们知道每当遇到 <pre> 标签的开始标签时，解析器会将 inPre 变量设置为 true
       // 这代表着后续解析所遇到的标签都存在于 <pre> 标签中，一旦 <pre> 标签内的所有内容解析完毕后
       // 解析器将会遇到 <pre> 标签的结束标签，此时 platformIsPreTag(element.tag) 将会为真
       // closeElement会将 inPre 变量的值重置为 false。同样的道理
@@ -480,6 +480,7 @@ export function parse(
     comment(text: string, start, end) {
       // adding anything as a sibling to the root node is forbidden
       // comments should still be allowed, but ignored
+      // 注释的type也是3，但是增加了isComment属性
       if (currentParent) {
         const child: ASTText = {
           type: 3,
