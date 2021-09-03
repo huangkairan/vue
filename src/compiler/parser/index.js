@@ -144,6 +144,11 @@ export function parse(
 
 
   //每当遇到一个标签的结束标签时，或遇到一元标签时都会调用该方法“闭合”标签
+  //1.对数据状态的还原，我们知道每当遇到 <pre> 标签的开始标签时，解析器会将 inPre 变量设置为 true
+  // 这代表着后续解析所遇到的标签都存在于 <pre> 标签中，一旦 <pre> 标签内的所有内容解析完毕后
+  // 解析器将会遇到 <pre> 标签的结束标签，此时 platformIsPreTag(element.tag) 将会为真
+  // closeElement会将 inPre 变量的值重置为 false。同样的道理
+  // 如果需要的话还会重置 inVPre 变量的值。closeElement 函数的第二个作用是调用后置处理转换钩子函数
   function closeElement(element) {
     trimEndingWhitespace(element)
     if (!inVPre && !element.processed) {
@@ -356,13 +361,20 @@ export function parse(
 
     //end 钩子函数，在解析 html 字符串时每次遇到 结束标签 时就会调用该函数
     end(tag, start, end) {
+      // 拿到栈最后的元素
       const element = stack[stack.length - 1]
       // pop stack
       stack.length -= 1
+      // 将栈最后的元素作为父元素
       currentParent = stack[stack.length - 1]
       if (process.env.NODE_ENV !== 'production' && options.outputSourceRange) {
         element.end = end
       }
+      //1.对数据状态的还原，我们知道每当遇到 <pre> 标签的开始标签时，解析器会将 inPre 变量设置为 true
+      // 这代表着后续解析所遇到的标签都存在于 <pre> 标签中，一旦 <pre> 标签内的所有内容解析完毕后
+      // 解析器将会遇到 <pre> 标签的结束标签，此时 platformIsPreTag(element.tag) 将会为真
+      // closeElement会将 inPre 变量的值重置为 false。同样的道理
+      // 如果需要的话还会重置 inVPre 变量的值。closeElement 函数的第二个作用是调用后置处理转换钩子函数
       closeElement(element)
     },
 
