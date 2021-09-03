@@ -367,14 +367,21 @@ export function parse(
     },
 
     //chars 钩子函数，在解析 html 字符串时每次遇到 纯文本 时就会调用该函数
+    // 1、如果文本节点是非空白符，无论其在不在 <pre> 标签之内，只要其不在文本标签内就会对文本进行解码，否则不会解码。
+    // 2、如果文本节点是空白符
+    // 2.1、空白符存在于 <pre> 标签之内，则完全保留
+    // 2.2、空白符不存在于 <pre> 标签之内，则根据编译器选项配置来决定是否保留空白，并且只会保留那些不存在于开始标签之后的空白符。
     chars(text: string, start: number, end: number) {
+      //当前节点的父节点不存在,警告 ;
       if (!currentParent) {
         if (process.env.NODE_ENV !== 'production') {
+          //1.template中只有文本
           if (text === template) {
             warnOnce(
               'Component template requires a root element, rather than just text.',
               { start }
             )
+            // 2.文本在根元素外面
           } else if ((text = text.trim())) {
             warnOnce(
               `text "${text}" outside root element will be ignored.`,
@@ -386,16 +393,23 @@ export function parse(
       }
       // IE textarea placeholder bug
       /* istanbul ignore if */
+      // 解决 IE 浏览器中渲染 <textarea> 标签的 placeholder 属性时存在的 bug . 直接结束
       if (isIE &&
         currentParent.tag === 'textarea' &&
         currentParent.attrsMap.placeholder === text
       ) {
         return
       }
+      // 拿到父节点的children
       const children = currentParent.children
+      // 处理空白符
+      // 存在pre标签内或去掉空白符号还有值
       if (inPre || text.trim()) {
+        // 如果父节点是script或style,文本保留,否则decode文本
         text = isTextTag(currentParent) ? text : decodeHTMLCached(text)
+        // 不存在于 <pre> 标签内的空白符
       } else if (!children.length) {
+        // vue只会保留不存在于开始标签后的空白符
         // remove the whitespace-only node right after an opening tag
         text = ''
       } else if (whitespaceOption) {
@@ -409,6 +423,13 @@ export function parse(
       } else {
         text = preserveWhitespace ? ' ' : ''
       }
+
+      // 1、如果文本节点存在于 v-pre 标签中，则会被作为普通文本节点对象
+      // 2、<pre> 标签内的空白会被保留
+      // 3、preserveWhitespace 只会保留那些不在开始标签之后的空格(说空白也没问题)
+      // 4、普通文本节点的元素描述对象的类型为 3，即 type = 3
+      // 5、包含字面量表达式的文本节点不会被作为普通的文本节点对待，而是会使用 parseText 函数解析它们，并创建一个类型为 2，即 type = 2 的元素描述对象
+      // 如果text存在
       if (text) {
         if (!inPre && whitespaceOption === 'condense') {
           // condense consecutive whitespaces into single space
@@ -416,6 +437,8 @@ export function parse(
         }
         let res
         let child: ?ASTNode
+
+        //  parseText 解析这段包含了字面量表达式的文本，如果解析成功则说明该文本节点的内容确实包含字面量表达式
         if (!inVPre && text !== ' ' && (res = parseText(text, delimiters))) {
           child = {
             type: 2,
@@ -423,6 +446,9 @@ export function parse(
             tokens: res.tokens,
             text
           }
+          // 1、文本节点存在于使用了 v-pre 指令的标签之内
+          // 2、文本节点是空格字符
+          // 3、文本节点的文本内容通过 parseText 函数解析失败
         } else if (text !== ' ' || !children.length || children[children.length - 1].text !== ' ') {
           child = {
             type: 3,
