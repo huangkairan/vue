@@ -45,12 +45,19 @@ export function createElement (
 }
 
 export function _createElement (
+  // 上下文环境
   context: Component,
+  // 标签 
   tag?: string | Class<Component> | Function | Object,
+  // VNode数据
   data?: VNodeData,
+  // 子节点
   children?: any,
+  // 子节点规范的类型：区分render函数是用户手写的还是编译生成的
   normalizationType?: number
 ): VNode | Array<VNode> {
+  // 警告 要避免使用响应式数据作为VNode的数据。
+  // 因为每次render都会生成新的VNode
   if (isDef(data) && isDef((data: any).__ob__)) {
     process.env.NODE_ENV !== 'production' && warn(
       `Avoid using observed data object as vnode data: ${JSON.stringify(data)}\n` +
@@ -60,14 +67,17 @@ export function _createElement (
     return createEmptyVNode()
   }
   // object syntax in v-bind
+  // 处理v-bind中的对象，
   if (isDef(data) && isDef(data.is)) {
     tag = data.is
   }
+  // 如果:is为false，创建空vnode
   if (!tag) {
     // in case of component :is set to falsy value
     return createEmptyVNode()
   }
   // warn against non-primitive key
+  // 警告key不是原始类型的情况
   if (process.env.NODE_ENV !== 'production' &&
     isDef(data) && isDef(data.key) && !isPrimitive(data.key)
   ) {
@@ -80,6 +90,7 @@ export function _createElement (
     }
   }
   // support single function children as default scoped slot
+  // 如果有children为数组，且第一个值为fn，将值给scopedSlots。为了支持scoped slot
   if (Array.isArray(children) &&
     typeof children[0] === 'function'
   ) {
@@ -87,15 +98,21 @@ export function _createElement (
     data.scopedSlots = { default: children[0] }
     children.length = 0
   }
+  // 处理children，render函数为用户手写的。
+  // 经过处理后，children会变成一个VNode类型的Array
   if (normalizationType === ALWAYS_NORMALIZE) {
     children = normalizeChildren(children)
+    // 简单处理chilren，render函数为编译生成的。
   } else if (normalizationType === SIMPLE_NORMALIZE) {
     children = simpleNormalizeChildren(children)
   }
+  // 创建一个VNode实例
   let vnode, ns
+  // 如果tag是string类型
   if (typeof tag === 'string') {
     let Ctor
     ns = (context.$vnode && context.$vnode.ns) || config.getTagNamespace(tag)
+    // 如果是内置的节点，直接创建一个普通的VNode
     if (config.isReservedTag(tag)) {
       // platform built-in elements
       if (process.env.NODE_ENV !== 'production' && isDef(data) && isDef(data.nativeOn) && data.tag !== 'component') {
@@ -108,9 +125,11 @@ export function _createElement (
         config.parsePlatformTagName(tag), data, children,
         undefined, undefined, context
       )
+      // 否则通过createComponent 创建一个组件类型的VNode
     } else if ((!data || !data.pre) && isDef(Ctor = resolveAsset(context.$options, 'components', tag))) {
       // component
       vnode = createComponent(Ctor, data, context, children, tag)
+      // 否则创建一个未知类型的vnode
     } else {
       // unknown or unlisted namespaced elements
       // check at runtime because it may get assigned a namespace when its
@@ -120,6 +139,7 @@ export function _createElement (
         undefined, undefined, context
       )
     }
+    // 如果tag不是string类型，直接创建组件类型的VNode
   } else {
     // direct component options / constructor
     vnode = createComponent(tag, data, context, children)
